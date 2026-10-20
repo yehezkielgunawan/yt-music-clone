@@ -1,11 +1,12 @@
 {
   "name": "yt-music-clone",
   "type": "module",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check src public tests *.ts *.json README.md",
+    "format:check": "prettier --check .github src public tests *.ts *.json *.jsonc README.md",
     "dev": "vite",
     "build": "vite build",
     "preview": "$npm_execpath run build && vite preview",
