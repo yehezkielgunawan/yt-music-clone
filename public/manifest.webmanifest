@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "Side A — Your listening room",
+  "short_name": "Side A",
+  "description": "Your personal YouTube queue and Brave background playback test.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111615",
+  "theme_color": "#111615",
+  "lang": "en",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

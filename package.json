@@ -1,7 +1,12 @@
 {
   "name": "yt-music-clone",
   "type": "module",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check .github src public tests *.ts *.json *.jsonc README.md",
     "dev": "vite",
     "build": "vite build",
     "preview": "$npm_execpath run build && vite preview",
@@ -13,11 +18,17 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.44.0",
+    "@hono/cli": "1.0.0-rc.8",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.19.2",
     "daisyui": "^5.7.50",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
     "vite": "^8.1.4",
     "vite-ssr-components": "^0.8.0",
+    "vitest": "^5.0.5",
     "wrangler": "^4.110.0"
   }
 }
