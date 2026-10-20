@@ -63,20 +63,85 @@ Service workers are registered in production builds only, so use this preview
 to check caching and offline behavior. The dev server intentionally does not
 register the worker.
 
+## GitHub Actions and deployment
+
+The production hostname is **https://music.yehezgun.com**. Wrangler configures it
+as a Worker Custom Domain, so Cloudflare manages its DNS record and certificate.
+The `yehezgun.com` zone must be active in the same Cloudflare account as the
+Worker. Check for an existing `music` DNS record before the first deployment;
+an existing CNAME prevents attaching the Custom Domain. Do not delete an existing
+record until you have confirmed what it serves.
+
+### Pull-request checks
+
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main`:
+
+1. Install the pinned pnpm version using the frozen lockfile on Node.js 24.
+2. Check formatting and TypeScript.
+3. Run unit tests with `pnpm test`.
+4. Build the application.
+
+These checks need no Cloudflare credentials. Browser tests remain available
+locally with `pnpm build && pnpm test:e2e`. If you enable branch protection,
+select **Unit tests and build** as the required check.
+
+### One-time secret setup
+
+Add these under GitHub **Settings → Secrets and variables → Actions**, or as
+secrets in the **production** environment under **Settings → Environments**:
+
+| Secret                  | Value                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `CLOUDFLARE_API_TOKEN`  | A Cloudflare API token allowed to deploy this Worker and configure its Custom Domain |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID containing the Worker and `yehezgun.com` zone              |
+
+Start with Cloudflare's **Edit Cloudflare Workers** token template and scope it
+to your account and the `yehezgun.com` zone. Keep the Workers script deployment
+permissions and the zone's Workers Routes write permission needed to attach the
+Custom Domain. Use Cloudflare's current token-template defaults for any required
+supporting permissions. Never put the token in source, Wrangler config, or a
+`VITE_*` variable.
+
+### Manual production deployment
+
+`.github/workflows/deploy.yml` has **only** a `workflow_dispatch` trigger. Merging
+a PR or pushing a commit does not deploy the application.
+
+1. Push the commits and merge the workflow files into the repository's default
+   branch so GitHub exposes the manual workflow.
+2. Add the two secrets above.
+3. Open **Actions → Deploy to Cloudflare → Run workflow**.
+4. Select the branch to deploy (`main` for the normal production release) and run
+   it. The workflow checks out that selected revision, repeats formatting,
+   type checks, unit tests, and the build, then deploys with the locked Wrangler
+   dependency. Production deploy jobs are serialized instead of cancelling an
+   in-flight deployment.
+5. Open **https://music.yehezgun.com** after deployment and certificate activation.
+
+The workflow uses the GitHub environment named `production`. You can optionally
+configure its deployment branch rules or required reviewers in GitHub. No such
+remote settings are created by these repository changes. If Cloudflare Workers
+Builds is already connected to this repository, disable its automatic builds if
+you want _all_ production deployments to remain manual.
+
+For an authenticated local deployment, the existing command still works:
+
+```sh
+pnpm run deploy
+```
+
+No application runtime environment variables are required for this prototype.
+The two secrets above authenticate the deployment job only. Repository changes
+and dry-run validation do not publish the Worker or create its DNS record.
+
 ## Test on your Android phone
 
 For the actual installed-app test, use an **HTTPS deployment**. Opening a LAN
 address such as `http://192.168.x.x` is not a substitute: it is normally not a
 secure context, so service workers and installation may be unavailable.
 
-The existing deploy command builds and publishes to Cloudflare:
-
-```sh
-pnpm run deploy
-```
-
-You must authenticate Wrangler with your Cloudflare account first. No account
-credentials belong in this repository. Deployment has not been performed by the
+Use the manual deployment workflow above, or authenticate Wrangler locally
+before running `pnpm run deploy`. Deployment has not been performed by the
 coding agent.
 
 1. Open the deployed HTTPS address **in Brave**, with Shields enabled. Record
