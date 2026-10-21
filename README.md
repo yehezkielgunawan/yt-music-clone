@@ -13,6 +13,8 @@ queue in **Brave on Android**, including playback while the phone is locked.
 - The saved test queue survives reloads on the same browser origin/device.
 - Phone-test checklist and JSON diagnostic export (latest 300 session events).
 - Installable PWA, app icons, and an offline fallback.
+- Required Google sign-in through Auth.js, restricted to one configured owner.
+- Encrypted cookie sessions, sign-out, and server-side owner checks.
 
 This is the **playback proof**, not the full catalog/playlist product yet. Search,
 multiple named playlists, D1 persistence, account synchronization, and offline
@@ -26,15 +28,19 @@ below before proceeding to the full app.
 
 ## Requirements and local development
 
-- Node.js 24+ and pnpm.
+- Node.js 24 and the pinned pnpm version (`12.4.1`).
+- Google OAuth credentials and the authentication configuration below.
 - An internet connection for YouTube playback.
 
 ```sh
-pnpm install
-pnpm dev
+pnpm install --frozen-lockfile
+cp .dev.vars.example .dev.vars
+# Fill in .dev.vars as described below before starting the server.
+pnpm dev --host localhost --port 5173 --strictPort
 ```
 
-Open the local address printed by Vite. YouTube is contacted only when you press
+Open **http://localhost:5173** and sign in with your allowed Google account.
+YouTube is contacted only when you press
 **Connect player**. When it is ready, press **Start listening**. This second tap
 provides an explicit playback gesture after asynchronous player initialization.
 
@@ -44,21 +50,74 @@ edited queue does not interrupt an already loaded playlist.
 
 ### Environment variables
 
-**None are required for the application in this milestone.** Do not create an
-`.env` file or a YouTube API key just to run playback. The IFrame Player API does
-not require a Data API key.
+Authentication now requires these **server-side Worker bindings**:
 
-For a later search milestone, a server-side `YOUTUBE_API_KEY` would be needed.
-That integration is not present yet. D1 would be a Worker binding rather than a
-browser environment variable. Never expose future secrets through `VITE_*`.
+| Variable               | Value / how to get it                                                         |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `AUTH_SECRET`          | Generate with `openssl rand -base64 32`; use a separate value for production. |
+| `GOOGLE_CLIENT_ID`     | The client ID of a Google OAuth **Web application**, created below.           |
+| `GOOGLE_CLIENT_SECRET` | The client secret from the same Google OAuth client.                          |
+| `ALLOWED_GOOGLE_EMAIL` | Your full, verified Google account email. Only this exact address is allowed. |
+| `AUTH_URL`             | `http://localhost:5173` locally; `https://music.yehezgun.com` in production.  |
+
+`AUTH_URL` is an origin only: do not append `/api/auth`, query parameters, or a
+callback path. Hostname and port must match the URL you open. Plain HTTP is
+accepted only for loopback development. The auth secret must be at least 32
+characters; use the random generation command rather than choosing a password.
+
+Use the ignored `.dev.vars` file locally. If you already use `.env`, you can put
+these values there instead; when `.dev.vars` exists, Wrangler ignores `.env`.
+Never put credentials in `VITE_*`, source code, or `wrangler.jsonc`.
+Missing or invalid authentication configuration returns a closed **503** response.
+
+No YouTube Data API key or database is needed for authentication or playback.
+Google sign-in requests only `openid email profile`; it does not import your
+YouTube library. A future search milestone would need a server-side
+`YOUTUBE_API_KEY`. Playlists and cross-device queue synchronization are not part
+of this authentication milestone.
+
+### Create the Google OAuth client
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/), then select or
+   create a project.
+2. Open **Google Auth Platform** (or **APIs & Services → OAuth consent screen**).
+   Configure the app name, support email, and developer contact under **Branding**.
+3. Under **Audience**, use **External** for a personal Gmail account. While the app
+   is in **Testing**, add your Google account as a test user.
+4. Under **Clients**, create an OAuth client with type **Web application**.
+5. Add these **Authorized redirect URIs** exactly:
+
+   ```text
+   http://localhost:5173/api/auth/callback/google
+   https://music.yehezgun.com/api/auth/callback/google
+   ```
+
+6. Copy its client ID and client secret into your local configuration. Set
+   `ALLOWED_GOOGLE_EMAIL` to the Google account you intend to use.
+
+For real Google sign-in in the production preview, also register
+`http://localhost:4173/api/auth/callback/google`, set `AUTH_URL` to
+`http://localhost:4173`, rebuild, and open the preview using **localhost**.
+`localhost` and `127.0.0.1` are different origins and need separate callback
+registrations if you choose to use both.
+
+The app uses seven-day encrypted, HTTP-only cookie sessions. HTTPS uses secure
+cookies. Google verification and the email allowlist are enforced at sign-in;
+the identity and current allowlist are checked again on protected requests.
+Changing the allowed email blocks old sessions on their next request. Sign-out
+uses an Auth.js confirmation page followed by a CSRF-protected POST; it removes
+this browser's session and navigates away from the player. Already-running
+playback is not periodically interrupted by a background session-check timer.
 
 ### Production build and local preview
 
 ```sh
 pnpm build
-pnpm exec vite preview --host 127.0.0.1 --port 4173
+pnpm exec vite preview --host localhost --port 4173 --strictPort
 ```
 
+Use the preview-specific `AUTH_URL` and Google redirect URI described above;
+rebuild after changing local bindings because the build copies them for preview.
 Service workers are registered in production builds only, so use this preview
 to check caching and offline behavior. The dev server intentionally does not
 register the worker.
@@ -85,7 +144,7 @@ These checks need no Cloudflare credentials. Browser tests remain available
 locally with `pnpm build && pnpm test:e2e`. If you enable branch protection,
 select **Unit tests and build** as the required check.
 
-### One-time secret setup
+### One-time deployment secret setup
 
 Add these under GitHub **Settings → Secrets and variables → Actions**, or as
 secrets in the **production** environment under **Settings → Environments**:
@@ -101,6 +160,31 @@ permissions and the zone's Workers Routes write permission needed to attach the
 Custom Domain. Use Cloudflare's current token-template defaults for any required
 supporting permissions. Never put the token in source, Wrangler config, or a
 `VITE_*` variable.
+
+### Production authentication configuration
+
+Set all five application bindings from the table above on the **yt-music-clone**
+Worker in Cloudflare **Workers & Pages → Settings → Variables and Secrets**.
+Use the **Secret** type (including for the owner email and origin, as declared by
+this project's required-secret configuration). Production `AUTH_URL` must be
+`https://music.yehezgun.com`. Generate a fresh production `AUTH_SECRET`; do not
+reuse the public credentials in `tests/fixtures/auth-env.json`.
+
+Alternatively, set each value at Wrangler's interactive prompt:
+
+```sh
+pnpm exec wrangler secret put AUTH_SECRET
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID
+pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
+pnpm exec wrangler secret put ALLOWED_GOOGLE_EMAIL
+pnpm exec wrangler secret put AUTH_URL
+```
+
+These commands change the live Worker and deploy a new version immediately.
+Run them yourself when ready to configure production. Application bindings live
+on the Worker; adding them only as GitHub Actions secrets does not provide them
+to the running application. The two `CLOUDFLARE_*` GitHub secrets still serve only
+to authenticate deployment. The manual deployment workflow remains unchanged.
 
 ### Manual production deployment
 
@@ -130,9 +214,11 @@ For an authenticated local deployment, the existing command still works:
 pnpm run deploy
 ```
 
-No application runtime environment variables are required for this prototype.
-The two secrets above authenticate the deployment job only. Repository changes
-and dry-run validation do not publish the Worker or create its DNS record.
+Configure the five application bindings before deploying the authenticated
+version. Builds and unit tests do not need real Google credentials; a build may
+warn about missing local secrets, but the deployed application must have them.
+Repository changes and dry-run validation do not publish the Worker or create
+its DNS record.
 
 ## Test on your Android phone
 
@@ -148,7 +234,8 @@ coding agent.
    your Brave version and Shields setting.
 2. Enable Brave's background video/audio playback setting. Its exact name and
    location can vary by version; check **Settings → Media → Background play**.
-3. Press **Connect player**, then **Start listening**. Keep the embedded player
+3. Sign in with your allowed Google account. Press **Connect player**, then
+   **Start listening**. Keep the embedded player
    unobstructed while foregrounded. Start playback before locking the phone.
 4. Turn on **Repeat** so the sample queue can continue beyond its three tracks.
    Prefer short, finite videos rather than live streams for transition testing.
@@ -185,13 +272,22 @@ pnpm test:e2e
 ```
 
 Unit tests cover URL validation, queue ordering and duplicates, bounded
-diagnostics, explicit-start behavior, and the player API boundary. Browser tests
+diagnostics, explicit-start behavior, the player API boundary, Google owner
+policy, encrypted sessions, OAuth initiation, CSRF-protected logout, and public-only
+service-worker caching. Browser tests
 run against the production preview and verify the mobile UI, persistent iframe,
 queue edits, retryable failures, diagnostic downloads, installation assets, and
 offline fallback.
 
 Browser tests use a **controlled YouTube API fixture**, not actual video media.
 Passing them does not establish ad blocking or Android background playback.
+Authentication tests use real Auth.js encryption with public, test-only credentials
+and session cookies. `scripts/preview-tests.mjs` temporarily substitutes the built
+preview's `.dev.vars` and restores it on normal exit; it does not change your
+source `.env` or `.dev.vars`. There is no production authentication bypass.
+These tests do not establish a successful real Google OAuth callback. After setup,
+manually check owner sign-in, denial of another account, sign-out, reload, and
+installed-PWA sign-in on the deployed HTTPS origin.
 
 The Playwright configuration uses the standard macOS Brave executable when
 available. Otherwise, install Playwright Chromium with
@@ -205,6 +301,7 @@ not an application environment variable or a requirement for deployment.
 src/
   index.tsx                     Hono route and server-rendered shell
   renderer.tsx                  HTML metadata and Vite asset entries
+  auth/                         Google configuration, owner middleware, and retry page
   client.tsx                    Persistent player lifecycle and browser events
   player/
     youtube-api.ts              Lazy API loading with timeout and retry
@@ -232,10 +329,18 @@ python3 scripts/generate-icons.py
 ```
 
 Queue IDs are stored in localStorage. Diagnostics, checklist answers, and notes
-stay in memory until you download a report; nothing is uploaded to our Worker.
+stay in memory until you download a report; queue and diagnostic data are not
+uploaded to our Worker.
 Reports include your user agent, selected video IDs, notes, and player events.
 Connecting/playing communicates with YouTube and is subject to its own data
-handling. There is no custom login or Google-account access in this prototype.
+handling. Google sign-in communicates with Google for authentication; the Worker
+processes your basic identity and sets an encrypted session cookie. There is no
+database-backed library or access to your YouTube account's music data yet.
+
+Only public installation assets and the offline fallback are precached; protected
+HTML and authentication responses are never cached. The v2 service worker deletes
+legacy shell caches on activation. After updating from the unauthenticated
+prototype, close all Side A windows so the waiting worker can activate.
 
 Updates install in the background and wait for old app windows to close; Side A
 does not automatically reload during playback. Change the service worker cache
