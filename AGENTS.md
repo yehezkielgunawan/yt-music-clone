@@ -2,7 +2,8 @@
 
 ## Scope and verification
 
-- This is a private, Google-authenticated YouTube playback prototype, not the full music app: no catalog search, named playlists, D1, YouTube-account sync, or offline media yet. See `README.md` for the current acceptance gate.
+- This is a private, Google-authenticated YouTube playback and saved-library MVP. Named playlists use D1; catalog search, YouTube-account sync, external playlist import, and offline media are not implemented. See `README.md` for the current acceptance gate.
+- `src/library/` owns playlist validation, owner-scoped persistence/API, and client editor state. Keep saved playlists, drafts, pending queues, and active playback snapshots separate. Saving/loading/deleting a playlist must not interrupt playback; Start/Restart applies pending queues. D1 writes/deletes use revision checks; never silently overwrite a conflict.
 - Brave Shields supplies ad blocking. Browser tests mock the YouTube API; they cannot prove ad-free or Android background playback. Validate a Brave tab and installed PWA separately on a real phone: 20+ minutes locked, at least three track transitions.
 
 ## Commands and test prerequisites
@@ -11,6 +12,7 @@
 - Match CI with `pnpm format:check && pnpm typecheck && pnpm test && pnpm build`. `pnpm test` runs only `tests/unit/**/*.test.ts`; there is no separate lint script.
 - Focus a unit test: `pnpm exec vitest run tests/unit/youtube-player.test.ts -t 'does not autoplay'`.
 - Browser tests require a fresh build: `pnpm build && pnpm test:e2e`. Playwright starts its own production preview on port **4173** and refuses to reuse an existing server; free that port first.
+- Run `pnpm db:migrate` before local development/manual preview. Browser tests migrate their own temporary local D1 storage; never point them at development or production data.
 - Focus a browser test after building: `pnpm exec playwright test tests/browser/playback.spec.ts --grep 'offline'`.
 - Playwright prefers the standard macOS Brave executable; otherwise run `pnpm exec playwright install chromium`. `PLAYWRIGHT_EXECUTABLE_PATH` overrides the browser for tests only. Its preview launcher temporarily supplies test-only bindings in the built `.dev.vars` and restores them on exit; authentication uses real encrypted test cookies, with no app bypass.
 - To inspect PWA behavior manually: configure `AUTH_URL=http://localhost:4173` and the matching Google callback, then `pnpm build && pnpm exec vite preview --host localhost --port 4173 --strictPort`. `pnpm dev` intentionally does not register the service worker. Phone installation requires HTTPS, not a plain HTTP LAN URL.
