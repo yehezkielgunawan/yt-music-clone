@@ -1,4 +1,4 @@
-# Side A: agent notes
+# Yehezgun-music: agent notes
 
 ## Scope and verification
 

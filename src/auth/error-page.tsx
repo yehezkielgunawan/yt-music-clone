@@ -6,12 +6,12 @@ export function AuthErrorPage({ denied }: { denied: boolean }) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Sign-in help — Side A</title>
+        <title>Sign-in help — Yehezgun-music</title>
         <Link href="/src/style.css" rel="stylesheet" />
       </head>
       <body>
         <main class="min-h-dvh flex flex-col items-center justify-center gap-6 p-8 text-center">
-          <p class="eyebrow">SIDE A · PRIVATE LISTENING ROOM</p>
+          <p class="eyebrow">Yehezgun-music · PRIVATE LISTENING ROOM</p>
           <h1 class="text-3xl">
             {denied ? 'This room is private.' : 'Sign-in could not finish.'}
           </h1>

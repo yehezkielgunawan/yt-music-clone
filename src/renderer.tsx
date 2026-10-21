@@ -13,10 +13,10 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta name="theme-color" content="#111615" />
         <meta
           name="description"
-          content="Your own little listening room. A personal YouTube queue and Brave background-playback test."
+          content="Yehezgun-music. Your personal listening room, YouTube queue, and saved playlists."
         />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
-        <title>Side A — Your little listening room</title>
+        <title>Yehezgun-music — Your little listening room</title>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
