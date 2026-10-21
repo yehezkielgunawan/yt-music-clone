@@ -1,4 +1,4 @@
-const CACHE = 'side-a-shell-v2'
+const CACHE = 'side-a-shell-v3'
 const CORE = [
   '/offline.html',
   '/manifest.webmanifest',

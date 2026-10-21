@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Side A — Your listening room",
-  "short_name": "Side A",
-  "description": "Your personal YouTube queue and Brave background playback test.",
+  "name": "Yehezgun-music",
+  "short_name": "Yehezgun-music",
+  "description": "Your personal listening room, YouTube queue, and saved playlists.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

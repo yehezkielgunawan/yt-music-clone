@@ -17,7 +17,7 @@ export const configureAuth = createMiddleware<AppEnv>(async (c, next) => {
     )
   }
   if (new URL(c.req.url).origin !== new URL(c.env.AUTH_URL).origin) {
-    return c.text('Open Side A at its configured AUTH_URL.', 400)
+    return c.text('Open Yehezgun-music at its configured AUTH_URL.', 400)
   }
   c.set('authConfig', config)
   await next()

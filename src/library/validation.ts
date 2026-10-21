@@ -48,7 +48,17 @@ export function parsePlaylist(value: unknown): PlaylistDraft {
     const label = typeof entry.label === 'string' ? entry.label.trim() : ''
     if (label.length > 200)
       throw new Error('Use up to 200 characters for a track label.')
-    return { id, videoId: entry.videoId, label: label || null }
+    const metadata: Pick<PlaylistEntry, 'title' | 'author' | 'album'> = {}
+    for (const field of ['title', 'author', 'album'] as const) {
+      if (entry[field] === undefined) continue
+      if (entry[field] !== null && typeof entry[field] !== 'string')
+        throw new Error(`Track ${field} must be text.`)
+      const text = typeof entry[field] === 'string' ? entry[field].trim() : ''
+      if (text.length > 200)
+        throw new Error(`Use up to 200 characters for a track ${field}.`)
+      metadata[field] = text || null
+    }
+    return { id, videoId: entry.videoId, label: label || null, ...metadata }
   })
   return { name: data.name.trim(), entries }
 }

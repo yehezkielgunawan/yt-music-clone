@@ -21,7 +21,7 @@ library.use('*', async (c, next) => {
 library.use(
   '*',
   bodyLimit({
-    maxSize: 65536,
+    maxSize: 262144,
     onError: (c) => c.json({ error: 'Playlist request is too large.' }, 413),
   }),
 )

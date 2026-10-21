@@ -59,9 +59,29 @@ describe('library authorization and request boundaries', () => {
       (
         await request('POST', {
           origin: authTestEnv.AUTH_URL,
-          body: 'x'.repeat(65537),
+          body: 'x'.repeat(262145),
         })
       ).status,
     ).toBe(413)
+  })
+  it('allows a full playlist with Unicode music details through the size boundary', async () => {
+    const text = '音'.repeat(200)
+    const body = JSON.stringify({
+      id: crypto.randomUUID(),
+      name: 'Music',
+      entries: Array.from({ length: 50 }, () => ({
+        id: crypto.randomUUID(),
+        videoId: 't_xWqaUws6c',
+        label: text,
+        title: text,
+        author: text,
+        album: text,
+      })),
+    })
+    expect(new TextEncoder().encode(body).byteLength).toBeGreaterThan(65536)
+    // Missing DB is checked after body size; valid-sized metadata must reach it.
+    expect(
+      (await request('POST', { origin: authTestEnv.AUTH_URL, body })).status,
+    ).toBe(503)
   })
 })

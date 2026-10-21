@@ -12,6 +12,44 @@ const entry = {
 }
 
 describe('playlist validation', () => {
+  it('preserves and normalizes optional music metadata while accepting older entries', () => {
+    const entries = parsePlaylist({
+      name: 'Rotation',
+      entries: [
+        entry,
+        {
+          ...entry,
+          id: crypto.randomUUID(),
+          title: ' Song ',
+          author: ' Artist ',
+          album: ' Album ',
+        },
+      ],
+    }).entries
+    expect(entries[0]).toEqual({ ...entry, label: 'Morning' })
+    expect(entries[1]).toMatchObject({
+      title: 'Song',
+      author: 'Artist',
+      album: 'Album',
+    })
+    expect(
+      parsePlaylist({ name: 'Rotation', entries: [{ ...entry, album: ' ' }] })
+        .entries[0].album,
+    ).toBeNull()
+  })
+  it.each(['title', 'author', 'album'] as const)(
+    'rejects invalid %s metadata',
+    (field) => {
+      for (const value of [42, {}, 'x'.repeat(201)]) {
+        expect(() =>
+          parsePlaylist({
+            name: 'Rotation',
+            entries: [{ ...entry, [field]: value }],
+          }),
+        ).toThrow()
+      }
+    },
+  )
   it('normalizes labels and preserves duplicate videos with distinct identities', () => {
     const value = parsePlaylist({
       name: '  Rotation  ',

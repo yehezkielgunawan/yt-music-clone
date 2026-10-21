@@ -11,7 +11,10 @@ import { parsePlaylist, tracksFromText } from './validation'
 
 type Editor = PlaylistDraft & { id: string; revision: number }
 
-export function useLibrary(active: boolean) {
+export function useLibrary(
+  active: boolean,
+  enrich: (entries: PlaylistEntry[]) => PlaylistEntry[],
+) {
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([])
   const [draft, setDraft] = useState<Editor | null>(null)
   const [saved, setSaved] = useState<Playlist | null>(null)
@@ -23,6 +26,7 @@ export function useLibrary(active: boolean) {
   const [notice, setNotice] = useState('')
   const lock = useRef(false)
   const listRequest = useRef(0)
+  const createAttempt = useRef<string | null>(null)
   const dirty = Boolean(
     links.trim() ||
     (draft &&
@@ -98,6 +102,7 @@ export function useLibrary(active: boolean) {
     clearFeedback()
   }
   function accept(playlist: Playlist) {
+    createAttempt.current = null
     setSaved(playlist)
     setDraft({
       ...playlist,
@@ -166,13 +171,22 @@ export function useLibrary(active: boolean) {
       return
     }
     await run(async () => {
-      const data = parsePlaylist(draft)
+      // Keep an uncertain create payload stable if its response was lost, even
+      // when more automatic metadata has arrived since the first attempt.
+      const entries =
+        !asNew && createAttempt.current === draft.id
+          ? draft.entries
+          : enrich(draft.entries)
+      const data = parsePlaylist({ ...draft, entries })
       const editor = asNew
-        ? { ...draft, id: crypto.randomUUID(), revision: 0 }
-        : draft
+        ? { ...draft, ...data, id: crypto.randomUUID(), revision: 0 }
+        : { ...draft, ...data }
       // Keep the same creation ID on retries, even if the first response was lost.
-      if (asNew) {
+      if (!editor.revision) {
         setDraft(editor)
+        createAttempt.current = editor.id
+      }
+      if (asNew) {
         setSaved(null)
       }
       const { playlist } = editor.revision

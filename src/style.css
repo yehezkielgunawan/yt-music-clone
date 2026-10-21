@@ -86,7 +86,7 @@ textarea:focus-visible {
   align-items: center;
   font-size: 30px;
   font-weight: 700;
-  letter-spacing: -1.8px;
+  letter-spacing: -1.2px;
   white-space: nowrap;
 }
 .brand-icon {
@@ -231,8 +231,9 @@ h1 em {
   top: 47px;
 }
 .record-label span {
-  font-size: 10px;
-  letter-spacing: 2px;
+  font-size: 8px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
   margin-bottom: 15px;
 }
 .record-label strong {
@@ -1106,7 +1107,11 @@ textarea::placeholder {
     gap: 12px;
   }
   .wordmark {
-    font-size: 27px;
+    font-size: clamp(17px, 4.8vw, 27px);
+    letter-spacing: -0.8px;
+  }
+  .site-header .prototype-tag {
+    display: none;
   }
   .prototype-tag {
     font-size: 8px;

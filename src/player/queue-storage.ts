@@ -42,9 +42,18 @@ export function queueLabel(
   index: number,
   shuffled: boolean,
 ): string | null {
+  return queueEntry(entries, order, index, shuffled)?.label ?? null
+}
+
+export function queueEntry(
+  entries: PlaylistEntry[],
+  order: string[],
+  index: number,
+  shuffled: boolean,
+): PlaylistEntry | null {
   const videoId = order[index]
   if (!shuffled && order.every((id, i) => id === entries[i]?.videoId))
-    return entries[index]?.label ?? null
+    return entries[index] ?? null
   const matches = entries.filter((entry) => entry.videoId === videoId)
-  return matches.length === 1 ? matches[0].label : null
+  return matches.length === 1 ? matches[0] : null
 }

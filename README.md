@@ -1,4 +1,4 @@
-# Side A
+# Yehezgun-music
 
 A small, mobile-first listening room built with Hono JSX, Vite, Tailwind CSS,
 daisyUI, and Cloudflare Workers. The first milestone tests a persistent YouTube
@@ -27,7 +27,7 @@ label, the current track uses YouTube metadata when available and other rows sho
 video IDs. Saved playlists appear on another signed-in device after refreshing
 the library; playback state does not synchronize between devices.
 
-Brave Shields handles browser-level ad blocking. Side A neither removes ads nor
+Brave Shields handles browser-level ad blocking. Yehezgun-music neither removes ads nor
 claims that its embedded player will behave like YouTube's first-party site.
 Background playback and automatic track advancement must pass the phone test
 below before proceeding to the full app.
@@ -93,7 +93,7 @@ No YouTube Data API key is needed. D1 stores the saved library; authentication
 and the local playback queue can still operate if library storage is unavailable.
 Google sign-in requests only `openid email profile`; it does not import your
 YouTube library. A future search milestone would need a server-side
-`YOUTUBE_API_KEY`. Library playlists belong to Side A and do not access your
+`YOUTUBE_API_KEY`. Library playlists belong to Yehezgun-music and do not access your
 YouTube account's playlists. Your pending queue and active playback are local to
 each device.
 
@@ -110,6 +110,13 @@ explicit; your old browser-local queue is never uploaded automatically.
   rejected. Sharing parameters do not affect the saved video ID.
 - Optional custom labels are up to 200 characters. Each duplicate entry has its
   own label and position. Move tracks with the Up/Down buttons.
+- Track titles and authors/channels load automatically through YouTube oEmbed,
+  without an API key. Existing playlists fetch missing details when opened.
+  Custom labels override titles; each entry also has an optional album field
+  (up to 200 characters). Album names are entered manually, never guessed.
+- **Save changes** also keeps fetched details with the playlist. Lookups never
+  write to saved playlists automatically. Unavailable details show a readable
+  fallback and **Retry track details**; playback and editing remain available.
 - **Save changes** writes the whole playlist. **Discard changes** restores the
   last saved version. Leaving a dirty draft asks before discarding it.
 - **Load into queue** copies the saved version into this device's pending queue.
@@ -124,11 +131,12 @@ explicit; your old browser-local queue is never uploaded automatically.
 - An expired session offers sign-in in another tab, so the existing tab can keep
   its draft and playback. Return and retry once signed in.
 
-The pending queue (including labels) survives reloads in localStorage. Existing
+The pending queue (including labels, fetched details, and albums) survives reloads in localStorage. Existing
 v1 queues are read as a migration fallback and left intact. During shuffled
-playback, YouTube may not distinguish identical-video occurrences; Side A falls
-back to YouTube metadata or video IDs if it cannot safely identify which custom
-label applies. All occurrence-specific labels remain preserved in the library.
+playback, YouTube may not distinguish identical-video occurrences; Yehezgun-music falls
+back to shared YouTube metadata if it cannot safely identify which custom
+label or album applies. Track rows never fall back to raw video IDs. All
+occurrence-specific labels and albums remain preserved in the library.
 
 ### Library database setup
 
@@ -334,12 +342,12 @@ coding agent.
 5. Switch to another app and verify the current track continues.
 6. Lock the phone for at least 20 minutes. Verify **at least three track
    transitions**, not just continued playback of the first track.
-7. Test any available lock-screen/headphone controls. Return to Side A and verify
+7. Test any available lock-screen/headphone controls. Return to Yehezgun-music and verify
    its displayed track matches what is playing.
 8. Open **Phone test**, mark only what you observed, record phone/Android/Brave
    versions, Shields configuration, battery settings and interruptions, then
    export the test report.
-9. Install from Side A's **Install** button or Brave's **⋮ → Add to Home screen /
+9. Install from Yehezgun-music's **Install** button or Brave's **⋮ → Add to Home screen /
    Install app**, and repeat as a separate test. Confirm the installed app is
    hosted by Brave rather than another browser. Use a fresh report/session for
    each run.
@@ -423,23 +431,26 @@ To regenerate the dependency-free PNG icons:
 python3 scripts/generate-icons.py
 ```
 
-Pending queue entries and labels are stored in localStorage. Saving a library
-playlist uploads its name, ordered video IDs, entry IDs, and custom labels to the
-Worker, which stores them in D1 under your verified Google identity. Diagnostics,
+Pending queue entries, labels, and music details are stored in localStorage. Saving a library
+playlist uploads its name, ordered video IDs, entry IDs, custom labels, fetched
+titles/authors, and optional album names to the Worker, which stores them in D1
+under your verified Google identity. Automatic metadata lookup sends video IDs
+to the authenticated Worker endpoint, which requests title and author/channel
+details from YouTube oEmbed. Diagnostics,
 checklist answers, and notes stay in memory until you download a report; they are
 not uploaded to the Worker.
 Reports include your user agent, selected video IDs, notes, and player events.
 Connecting/playing communicates with YouTube and is subject to its own data
 handling. Google sign-in communicates with Google for authentication; the Worker
-processes your basic identity and sets an encrypted session cookie. Side A does
+processes your basic identity and sets an encrypted session cookie. Yehezgun-music does
 not access your YouTube account's music data.
 
 Only public installation assets and the offline fallback are precached; protected
-HTML, library API, and authentication responses are never cached. The v2 service worker deletes
+HTML, API, and authentication responses are never cached. The v3 service worker deletes
 legacy shell caches on activation. After updating from the unauthenticated
-prototype, close all Side A windows so the waiting worker can activate.
+prototype, close all Yehezgun-music windows so the waiting worker can activate.
 
-Updates install in the background and wait for old app windows to close; Side A
+Updates install in the background and wait for old app windows to close; Yehezgun-music
 does not automatically reload during playback. Change the service worker cache
 version when changing its precached shell. The YouTube origin referrer is kept
 using `strict-origin-when-cross-origin` to avoid player identification error 153.

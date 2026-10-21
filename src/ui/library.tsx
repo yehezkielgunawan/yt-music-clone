@@ -2,6 +2,7 @@
 /** @jsxImportSource hono/jsx/dom */
 import type { useLibrary } from '../library/use-library'
 import type { PlaylistEntry } from '../library/types'
+import type { TrackMetadata } from '../library/track-metadata'
 
 type LibraryState = ReturnType<typeof useLibrary>
 function inputValue(event: Event) {
@@ -17,11 +18,13 @@ export function Library({
   online,
   queue,
   loadQueue,
+  metadata,
 }: {
   library: LibraryState
   online: boolean
   queue: PlaylistEntry[]
   loadQueue: (entries: PlaylistEntry[]) => void
+  metadata: TrackMetadata
 }) {
   const { draft, saved, busy } = library
   const disabled = busy || !online
@@ -168,65 +171,104 @@ export function Library({
               Add tracks
             </button>
             <ol class="space-y-4" aria-label="Playlist tracks">
-              {draft.entries.map((entry, index) => (
-                <li
-                  key={entry.id}
-                  class="rounded-box border border-base-300 p-3 space-y-2"
-                >
-                  <p class="text-sm break-all">
-                    {index + 1}. {entry.videoId}
-                  </p>
-                  <label class="block" for={`label-${entry.id}`}>
-                    Track {index + 1} label
-                    <input
-                      class="input w-full mt-1"
-                      id={`label-${entry.id}`}
-                      value={entry.label ?? ''}
-                      maxlength={200}
-                      placeholder="Optional track name"
-                      onInput={(event) => {
-                        const label = inputValue(event)
-                        library.change({
-                          entries: draft.entries.map((track) =>
-                            track.id === entry.id ? { ...track, label } : track,
-                          ),
-                        })
-                      }}
-                    />
-                  </label>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      class="btn btn-sm"
-                      aria-label={`Move track ${index + 1} up`}
-                      disabled={index === 0}
-                      onClick={() => library.move(index, -1)}
-                    >
-                      ↑ Up
-                    </button>
-                    <button
-                      class="btn btn-sm"
-                      aria-label={`Move track ${index + 1} down`}
-                      disabled={index === draft.entries.length - 1}
-                      onClick={() => library.move(index, 1)}
-                    >
-                      ↓ Down
-                    </button>
-                    <button
-                      class="btn btn-sm btn-ghost"
-                      aria-label={`Remove track ${index + 1}`}
-                      onClick={() =>
-                        library.change({
-                          entries: draft.entries.filter(
-                            (track) => track.id !== entry.id,
-                          ),
-                        })
-                      }
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {draft.entries.map((entry, index) => {
+                const details = metadata.details(entry)
+                return (
+                  <li
+                    key={entry.id}
+                    class="rounded-box border border-base-300 p-3 space-y-2"
+                  >
+                    <div class="min-w-0 break-words">
+                      <p class="font-bold">
+                        {index + 1}. {details.title}
+                      </p>
+                      <p class="text-sm text-base-content/70">
+                        {details.subtitle}
+                      </p>
+                    </div>
+                    {details.unavailable && (
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-ghost"
+                        onClick={() => void metadata.retry(entry.videoId)}
+                      >
+                        Retry track details
+                      </button>
+                    )}
+                    <label class="block" for={`label-${entry.id}`}>
+                      Track {index + 1} label
+                      <input
+                        class="input w-full mt-1"
+                        id={`label-${entry.id}`}
+                        value={entry.label ?? ''}
+                        maxlength={200}
+                        placeholder="Optional track name"
+                        onInput={(event) => {
+                          const label = inputValue(event)
+                          library.change({
+                            entries: draft.entries.map((track) =>
+                              track.id === entry.id
+                                ? { ...track, label }
+                                : track,
+                            ),
+                          })
+                        }}
+                      />
+                    </label>
+                    <label class="block" for={`album-${entry.id}`}>
+                      Track {index + 1} album
+                      <input
+                        class="input w-full mt-1"
+                        id={`album-${entry.id}`}
+                        value={entry.album ?? ''}
+                        maxlength={200}
+                        placeholder="Optional album name"
+                        onInput={(event) => {
+                          const album = inputValue(event)
+                          library.change({
+                            entries: draft.entries.map((track) =>
+                              track.id === entry.id
+                                ? { ...track, album }
+                                : track,
+                            ),
+                          })
+                        }}
+                      />
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        class="btn btn-sm"
+                        aria-label={`Move track ${index + 1} up`}
+                        disabled={index === 0}
+                        onClick={() => library.move(index, -1)}
+                      >
+                        ↑ Up
+                      </button>
+                      <button
+                        class="btn btn-sm"
+                        aria-label={`Move track ${index + 1} down`}
+                        disabled={index === draft.entries.length - 1}
+                        onClick={() => library.move(index, 1)}
+                      >
+                        ↓ Down
+                      </button>
+                      <button
+                        class="btn btn-sm btn-ghost"
+                        aria-label={`Remove track ${index + 1}`}
+                        onClick={() =>
+                          library.change({
+                            entries: draft.entries.filter(
+                              (track) => track.id !== entry.id,
+                            ),
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
             </ol>
             {!draft.entries.length && (
               <p class="muted">
@@ -248,6 +290,10 @@ export function Library({
               </button>
             </div>
           </fieldset>
+          <p class="muted">
+            Titles and authors come from YouTube. Album names are optional. Save
+            changes to keep fetched details with this playlist.
+          </p>
           <p class="muted" role="status">
             {busy
               ? 'Working…'
