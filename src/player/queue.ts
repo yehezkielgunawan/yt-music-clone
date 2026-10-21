@@ -31,6 +31,8 @@ export function parseVideoId(input: string): string {
     else if (/^\/(shorts|embed|live)\//.test(url.pathname))
       id = url.pathname.split('/')[2]
   }
+  if (!id && HOSTS.has(url.hostname) && url.searchParams.has('list'))
+    throw new Error('Paste individual track links, not a playlist URL.')
   if (!id || !VIDEO_ID.test(id))
     throw new Error('That link is not a supported YouTube video.')
   return id
