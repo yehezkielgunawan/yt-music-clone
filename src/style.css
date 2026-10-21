@@ -2,7 +2,7 @@
 @source "./";
 @plugin "daisyui" {
   themes: dark --default;
-  include: button;
+  include: button, input;
 }
 
 :root {
@@ -383,6 +383,7 @@ h1 em {
 }
 .room-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 23px;
   border-bottom: 1px solid var(--line);
 }

@@ -15,11 +15,16 @@ queue in **Brave on Android**, including playback while the phone is locked.
 - Installable PWA, app icons, and an offline fallback.
 - Required Google sign-in through Auth.js, restricted to one configured owner.
 - Encrypted cookie sessions, sign-out, and server-side owner checks.
+- A private D1-backed library of named playlists, available across devices.
+- Optional custom track labels, ordered duplicates, and explicit save/discard.
+- Individual YouTube and YouTube Music track links; no external playlist import.
 
-This is the **playback proof**, not the full catalog/playlist product yet. Search,
-multiple named playlists, D1 persistence, account synchronization, and offline
-music are not implemented. Titles and artist names appear for the current track
-when YouTube supplies them; other rows show video IDs until played.
+This is a **private playback and saved-library MVP**. Search, automatic metadata
+retrieval, YouTube-account synchronization, external playlist import, and offline
+music are not implemented. Custom labels take precedence in the queue; without a
+label, the current track uses YouTube metadata when available and other rows show
+video IDs. Saved playlists appear on another signed-in device after refreshing
+the library; playback state does not synchronize between devices.
 
 Brave Shields handles browser-level ad blocking. Side A neither removes ads nor
 claims that its embedded player will behave like YouTube's first-party site.
@@ -36,6 +41,7 @@ below before proceeding to the full app.
 pnpm install --frozen-lockfile
 cp .dev.vars.example .dev.vars
 # Fill in .dev.vars as described below before starting the server.
+pnpm db:migrate
 pnpm dev --host localhost --port 5173 --strictPort
 ```
 
@@ -70,11 +76,81 @@ these values there instead; when `.dev.vars` exists, Wrangler ignores `.env`.
 Never put credentials in `VITE_*`, source code, or `wrangler.jsonc`.
 Missing or invalid authentication configuration returns a closed **503** response.
 
-No YouTube Data API key or database is needed for authentication or playback.
+No YouTube Data API key is needed. D1 stores the saved library; authentication
+and the local playback queue can still operate if library storage is unavailable.
 Google sign-in requests only `openid email profile`; it does not import your
 YouTube library. A future search milestone would need a server-side
-`YOUTUBE_API_KEY`. Playlists and cross-device queue synchronization are not part
-of this authentication milestone.
+`YOUTUBE_API_KEY`. Library playlists belong to Side A and do not access your
+YouTube account's playlists. Your pending queue and active playback are local to
+each device.
+
+### Using the saved library
+
+Open **Library**, then **New playlist**, or choose **Save current queue as
+playlist** to copy the editable/pending queue into a new playlist draft. Import is
+explicit; your old browser-local queue is never uploaded automatically.
+
+- Names are required, up to 100 characters. Empty playlists can be saved.
+- Paste one individual YouTube or YouTube Music track URL or video ID per line,
+  then **Add tracks**. Up to 50 entries, including duplicate videos.
+- A track URL with `v` and `list` saves only that track; playlist-only URLs are
+  rejected. Sharing parameters do not affect the saved video ID.
+- Optional custom labels are up to 200 characters. Each duplicate entry has its
+  own label and position. Move tracks with the Up/Down buttons.
+- **Save changes** writes the whole playlist. **Discard changes** restores the
+  last saved version. Leaving a dirty draft asks before discarding it.
+- **Load into queue** copies the saved version into this device's pending queue.
+  Open **Your queue**, then **Start listening / Restart queue** to apply it.
+  Editing, saving, loading, or deleting a playlist never restarts current playback.
+- **Refresh library** retrieves saves from other devices. A stale save or delete
+  is rejected, preserving your draft. Choose **Reload latest** (confirming draft
+  loss) or **Save as new playlist** to keep your version separately.
+- Network/storage failures retain the draft in memory for retry. Unadded text in
+  Track links must be added or cleared before saving. Offline edits are not queued
+  for automatic synchronization. Drafts do not survive closing or reloading the page.
+- An expired session offers sign-in in another tab, so the existing tab can keep
+  its draft and playback. Return and retry once signed in.
+
+The pending queue (including labels) survives reloads in localStorage. Existing
+v1 queues are read as a migration fallback and left intact. During shuffled
+playback, YouTube may not distinguish identical-video occurrences; Side A falls
+back to YouTube metadata or video IDs if it cannot safely identify which custom
+label applies. All occurrence-specific labels remain preserved in the library.
+
+### Library database setup
+
+`wrangler.jsonc` declares the `DB` D1 binding named **side-a-library**. Local
+development needs no remote database ID: `pnpm db:migrate` applies the checked-in
+SQL migrations to local storage. Apply local migrations before using `pnpm dev`
+or a manual production preview. Local library data is separate from production.
+
+Before the first production deployment, provision the database yourself:
+
+```sh
+pnpm exec wrangler d1 create side-a-library
+```
+
+Copy the returned `database_id` into the existing `d1_databases[0]` entry in
+`wrangler.jsonc`. The checked-in configuration intentionally omits a fabricated
+production ID. Then run `pnpm cf-typegen`. Provisioning and production deployment
+are separate actions; development and browser tests do not create remote resources.
+
+The manual deployment workflow and `pnpm run deploy` apply pending remote
+migrations **before** publishing the Worker. Their Cloudflare API token therefore
+also needs account-scoped **D1 Edit** permission. Migrations explicitly use the
+source `wrangler.jsonc`; publishing continues to use Vite's generated deployment
+configuration. Migration failure stops deployment. The initial migration only
+adds the library table/index, so it is compatible with the previous Worker.
+
+To apply production migrations separately when preparing a release:
+
+```sh
+pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.jsonc
+```
+
+This command changes the production database. It is not a dry run. Database IDs
+are configuration, not secrets. Owner identity is derived from the verified Google
+subject on the server; changing the allowed account does not transfer its library.
 
 ### Create the Google OAuth client
 
@@ -302,14 +378,17 @@ src/
   index.tsx                     Hono route and server-rendered shell
   renderer.tsx                  HTML metadata and Vite asset entries
   auth/                         Google configuration, owner middleware, and retry page
+  library/                      Playlist contracts, validation, D1 repository, API, client state
   client.tsx                    Persistent player lifecycle and browser events
   player/
     youtube-api.ts              Lazy API loading with timeout and retry
     youtube-player.ts           Player adapter and observable playback state
     queue.ts                    YouTube input validation and sample queue
+    queue-storage.ts            Labeled pending queues and v1 storage migration
     playback-diagnostics.ts     Bounded, local session event log
   ui/
     app.tsx                     Queue editor, controls, checklist, and reports
+    library.tsx                 Named playlist list and editor
     icon.tsx                    Small inline SVG icon set
   style.css                     Responsive listening-room styling
 public/
@@ -328,17 +407,19 @@ To regenerate the dependency-free PNG icons:
 python3 scripts/generate-icons.py
 ```
 
-Queue IDs are stored in localStorage. Diagnostics, checklist answers, and notes
-stay in memory until you download a report; queue and diagnostic data are not
-uploaded to our Worker.
+Pending queue entries and labels are stored in localStorage. Saving a library
+playlist uploads its name, ordered video IDs, entry IDs, and custom labels to the
+Worker, which stores them in D1 under your verified Google identity. Diagnostics,
+checklist answers, and notes stay in memory until you download a report; they are
+not uploaded to the Worker.
 Reports include your user agent, selected video IDs, notes, and player events.
 Connecting/playing communicates with YouTube and is subject to its own data
 handling. Google sign-in communicates with Google for authentication; the Worker
-processes your basic identity and sets an encrypted session cookie. There is no
-database-backed library or access to your YouTube account's music data yet.
+processes your basic identity and sets an encrypted session cookie. Side A does
+not access your YouTube account's music data.
 
 Only public installation assets and the offline fallback are precached; protected
-HTML and authentication responses are never cached. The v2 service worker deletes
+HTML, library API, and authentication responses are never cached. The v2 service worker deletes
 legacy shell caches on activation. After updating from the unauthenticated
 prototype, close all Side A windows so the waiting worker can activate.
 

@@ -3,6 +3,7 @@ import { authHandler } from '@hono/auth-js'
 import { configureAuth, requireOwner, type AppEnv } from './auth/middleware'
 import { AuthErrorPage } from './auth/error-page'
 import { renderer } from './renderer'
+import { library } from './library/routes'
 
 const app = new Hono<AppEnv>()
 
@@ -22,6 +23,7 @@ app.get('/api/auth/error', (c) => {
 })
 app.use('/api/auth/*', authHandler())
 app.use('*', requireOwner)
+app.route('/api/playlists', library)
 app.use(renderer)
 
 app.get('/', (c) => {

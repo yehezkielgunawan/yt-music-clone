@@ -3,6 +3,13 @@
   "name": "yt-music-clone",
   "compatibility_date": "2025-08-03",
   "main": "./src/index.tsx",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "side-a-library",
+      "migrations_dir": "migrations",
+    },
+  ],
   "secrets": {
     "required": [
       "AUTH_SECRET",

@@ -2,7 +2,11 @@ import { getAuthUser } from '@hono/auth-js'
 import { createMiddleware } from 'hono/factory'
 import { getAuthConfig } from './config'
 
-export type AppEnv = { Bindings: CloudflareBindings }
+export type AppEnv = {
+  Bindings: Omit<CloudflareBindings, 'DB'> &
+    Partial<Pick<CloudflareBindings, 'DB'>>
+  Variables: { ownerId: string }
+}
 
 export const configureAuth = createMiddleware<AppEnv>(async (c, next) => {
   const config = getAuthConfig(c.env)
@@ -27,5 +31,6 @@ export const requireOwner = createMiddleware<AppEnv>(async (c, next) => {
       : c.redirect('/api/auth/signin')
   }
   c.set('authUser', auth)
+  c.set('ownerId', `google:${auth.token.sub}`)
   await next()
 })

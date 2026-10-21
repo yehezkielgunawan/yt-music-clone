@@ -135,7 +135,7 @@ describe('public authentication endpoints', () => {
       ),
     )
     const csrf = await request('/api/auth/csrf')
-    const { csrfToken } = await csrf.json()
+    const { csrfToken } = await csrf.json<{ csrfToken: string }>()
     const cookies = csrf.headers
       .getSetCookie()
       .map((cookie) => cookie.split(';')[0])
@@ -164,7 +164,7 @@ describe('public authentication endpoints', () => {
   it('clears the owner cookie only after a CSRF-protected logout POST', async () => {
     const cookie = await sessionCookie()
     const csrf = await request('/api/auth/csrf', cookie)
-    const { csrfToken } = await csrf.json()
+    const { csrfToken } = await csrf.json<{ csrfToken: string }>()
     const response = await app.request(
       `${authTestEnv.AUTH_URL}/api/auth/signout`,
       {

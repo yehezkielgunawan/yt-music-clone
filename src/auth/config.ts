@@ -5,7 +5,9 @@ function ownerEmail(email: unknown, allowed: string): boolean {
   return typeof email === 'string' && email.toLowerCase() === allowed
 }
 
-export function getAuthConfig(env: CloudflareBindings): AuthConfig | null {
+export function getAuthConfig(
+  env: Omit<CloudflareBindings, 'DB'>,
+): AuthConfig | null {
   if (
     typeof env.AUTH_SECRET !== 'string' ||
     env.AUTH_SECRET.length < 32 ||

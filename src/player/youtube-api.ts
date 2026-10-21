@@ -56,7 +56,7 @@ export function loadYouTubeAPI(): Promise<YouTubeAPI> {
     script.src = 'https://www.youtube.com/iframe_api'
     script.async = true
     script.onerror = fail
-    document.head.append(script)
+    document.head.appendChild(script)
   })
   return apiPromise
 }

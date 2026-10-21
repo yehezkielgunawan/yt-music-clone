@@ -2,7 +2,7 @@ import { encode, type JWT } from '@auth/core/jwt'
 import testEnv from './auth-env.json' with { type: 'json' }
 
 // Public, test-only credentials. Never use these values for a deployed Worker.
-export const authTestEnv = testEnv satisfies CloudflareBindings
+export const authTestEnv = testEnv satisfies Omit<CloudflareBindings, 'DB'>
 
 export async function sessionCookie(
   claims: JWT = {},
