@@ -80,7 +80,11 @@ app.get('/', (c) => {
             </div>
           </section>
           <div class="workspace">
-            <aside class="player-panel" aria-labelledby="player-heading">
+            <aside
+              id="video-panel"
+              class="player-panel is-compact"
+              aria-labelledby="player-heading"
+            >
               <div class="section-heading">
                 <span class="eyebrow" id="player-heading">
                   ON THE DECK
@@ -97,7 +101,8 @@ app.get('/', (c) => {
                 </div>
               </div>
               <p class="player-caption">
-                Video stays visible here. Music is played by YouTube.
+                Your music, played by YouTube. Use the music bar below to listen
+                and expand the video whenever you like.
               </p>
               <div class="brave-note">
                 <span class="note-symbol" aria-hidden="true">

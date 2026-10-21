@@ -15,7 +15,9 @@ test('mobile UI mounts without errors and fits a narrow viewport', async ({
   })
   await page.goto('/')
   await expect(
-    page.getByRole('button', { name: 'Connect player', exact: true }),
+    page
+      .locator('#room-panel')
+      .getByRole('button', { name: 'Connect player', exact: true }),
   ).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Good music. Less noise.' }),
@@ -40,15 +42,19 @@ test('connects without autoplay and preserves the iframe through tabs and queue 
   await fakeAPI(page)
   await page.goto('/')
   await page
+    .locator('#room-panel')
     .getByRole('button', { name: 'Connect player', exact: true })
     .click()
   await expect(
-    page.getByRole('button', { name: 'Start listening', exact: true }),
+    page
+      .locator('#room-panel')
+      .getByRole('button', { name: 'Start listening', exact: true }),
   ).toBeEnabled()
   expect(
     await page.evaluate(() => Reflect.get(window, '__fixture').calls),
   ).toEqual([])
   await page
+    .locator('#room-panel')
     .getByRole('button', { name: 'Start listening', exact: true })
     .click()
   await page
@@ -80,7 +86,9 @@ test('connects without autoplay and preserves the iframe through tabs and queue 
   await page.reload()
   await expect(page.locator('.track-row')).toHaveCount(2)
   await expect(
-    page.getByRole('button', { name: 'Connect player', exact: true }),
+    page
+      .locator('#room-panel')
+      .getByRole('button', { name: 'Connect player', exact: true }),
   ).toBeVisible()
 })
 
@@ -131,13 +139,16 @@ test('handles connection failure with a retryable message', async ({
   )
   await page.goto('/')
   await page
+    .locator('#room-panel')
     .getByRole('button', { name: 'Connect player', exact: true })
     .click()
   await expect(page.getByRole('alert')).toContainText(
     'YouTube could not connect',
   )
   await expect(
-    page.getByRole('button', { name: 'Connect player', exact: true }),
+    page
+      .locator('#room-panel')
+      .getByRole('button', { name: 'Connect player', exact: true }),
   ).toBeEnabled()
 })
 
@@ -199,6 +210,8 @@ test('has valid install assets and shows a cached offline fallback', async ({
   await context.setOffline(false)
   await page.getByRole('link', { name: 'Try again' }).click()
   await expect(
-    page.getByRole('button', { name: 'Connect player', exact: true }),
+    page
+      .locator('#room-panel')
+      .getByRole('button', { name: 'Connect player', exact: true }),
   ).toBeVisible()
 })
