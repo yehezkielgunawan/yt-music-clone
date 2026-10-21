@@ -6,9 +6,10 @@ queue in **Brave on Android**, including playback while the phone is locked.
 
 ## What works in this milestone
 
-- One persistent, visible YouTube embedded player.
+- One persistent, visible YouTube embedded player with compact/expanded views.
 - A three-track sample queue, replaceable with YouTube links or video IDs.
-- Play/pause, previous/next, seeking, shuffle, and playlist repeat.
+- A persistent music bar with connect/start, play/pause, previous/next, seeking,
+  shuffle, and playlist repeat on mobile and desktop.
 - Queue editing without interrupting playback; **Restart queue** applies edits.
 - The saved test queue survives reloads on the same browser origin/device.
 - Phone-test checklist and JSON diagnostic export (latest 300 session events).
@@ -49,6 +50,18 @@ Open **http://localhost:5173** and sign in with your allowed Google account.
 YouTube is contacted only when you press
 **Connect player**. When it is ready, press **Start listening**. This second tap
 provides an explicit playback gesture after asynchronous player initialization.
+
+The music bar at the bottom is the primary playback interface and stays available
+in every view, including Library. Connect and start there, then use play/pause,
+previous/next, the seek slider, shuffle, and repeat. Dragging the slider previews
+the position; releasing it seeks. Keyboard navigation also works, and seeking
+while paused does not resume playback.
+
+Video starts in a compact, visible player. **Expand video** and **Compact video**
+in the bar resize the same player without restarting the track or queue. Starting
+music does not scroll to the video. This presentation choice lasts until reload;
+it does not disable the video stream or provide an audio-only mode. Volume and
+mute controls remain available in the YouTube player or through your device.
 
 Use **+** beside the queue title to paste one URL or 11-character video ID per
 line. The prototype supports up to 50 entries, including duplicates. Saving an
@@ -311,8 +324,11 @@ coding agent.
 2. Enable Brave's background video/audio playback setting. Its exact name and
    location can vary by version; check **Settings → Media → Background play**.
 3. Sign in with your allowed Google account. Press **Connect player**, then
-   **Start listening**. Keep the embedded player
-   unobstructed while foregrounded. Start playback before locking the phone.
+   **Start listening** in the music bar. Check play/pause, previous/next, seeking
+   while playing and paused, shuffle, and repeat. Toggle **Expand video** and
+   **Compact video** and confirm playback continues at the same position. Keep
+   the embedded player unobstructed while foregrounded. Start playback before
+   locking the phone.
 4. Turn on **Repeat** so the sample queue can continue beyond its three tracks.
    Prefer short, finite videos rather than live streams for transition testing.
 5. Switch to another app and verify the current track continues.
@@ -351,9 +367,9 @@ Unit tests cover URL validation, queue ordering and duplicates, bounded
 diagnostics, explicit-start behavior, the player API boundary, Google owner
 policy, encrypted sessions, OAuth initiation, CSRF-protected logout, and public-only
 service-worker caching. Browser tests
-run against the production preview and verify the mobile UI, persistent iframe,
-queue edits, retryable failures, diagnostic downloads, installation assets, and
-offline fallback.
+run against the production preview and verify the responsive music bar, keyboard
+seeking, compact/expanded video with a persistent iframe, queue edits, retryable
+failures, diagnostic downloads, installation assets, and offline fallback.
 
 Browser tests use a **controlled YouTube API fixture**, not actual video media.
 Passing them does not establish ad blocking or Android background playback.
