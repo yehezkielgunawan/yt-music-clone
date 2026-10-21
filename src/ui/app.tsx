@@ -2,10 +2,18 @@
 /** @jsxImportSource hono/jsx/dom */
 import { useEffect, useRef, useState } from 'hono/jsx'
 import type { PlaybackController } from '../player/youtube-player'
-import { DEFAULT_QUEUE, parseQueue } from '../player/queue'
+import { DEFAULT_QUEUE } from '../player/queue'
 import { Icon } from './icon'
+import { Library } from './library'
+import { useLibrary } from '../library/use-library'
+import type { PlaylistEntry } from '../library/types'
+import { tracksFromText } from '../library/validation'
+import {
+  loadQueue,
+  saveQueue as persistQueue,
+  queueLabel,
+} from '../player/queue-storage'
 
-const STORAGE_KEY = 'side-a:prototype-queue:v1'
 const CHECKS = [
   'Playback continues in another app',
   'Playback continues with the screen locked',
@@ -33,14 +41,13 @@ const inputValue = (event: Event) => {
     : ''
 }
 
-function initialQueue(): string[] {
+function initialQueue(): PlaylistEntry[] {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
-    if (value) return parseQueue(value)
+    return loadQueue(localStorage)
   } catch {
     /* Storage may be blocked or an older saved queue may be invalid. */
   }
-  return [...DEFAULT_QUEUE]
+  return tracksFromText(DEFAULT_QUEUE.join('\n'))
 }
 
 export function App({
@@ -52,10 +59,13 @@ export function App({
 }) {
   const [snapshot, setSnapshot] = useState(controller.snapshot())
   const [queue, setQueue] = useState(initialQueue)
-  const [tab, setTab] = useState<'queue' | 'test' | 'log'>('queue')
+  const [tab, setTab] = useState<'queue' | 'library' | 'test' | 'log'>('queue')
+  const library = useLibrary(tab === 'library')
+  const [activeEntries, setActiveEntries] = useState<PlaylistEntry[]>([])
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
+  const [queueNotice, setQueueNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const [notes, setNotes] = useState('')
@@ -66,7 +76,31 @@ export function App({
   const [seek, setSeek] = useState<number | null>(null)
   const editField = useRef<HTMLTextAreaElement | null>(null)
   const order =
-    snapshot.started && snapshot.order.length ? snapshot.order : queue
+    snapshot.started && snapshot.order.length
+      ? snapshot.order
+      : queue.map((entry) => entry.videoId)
+
+  function changeTab(next: typeof tab) {
+    if (next === tab) return
+    if (tab === 'library') {
+      if (!library.canLeave()) return
+      library.discard()
+    }
+    setTab(next)
+  }
+
+  function replaceQueue(entries: PlaylistEntry[]) {
+    const next = entries.map((entry) => ({ ...entry }))
+    setQueue(next)
+    setError('')
+    try {
+      persistQueue(localStorage, next)
+    } catch {
+      setError(
+        'Queue updated for this session. Browser storage is unavailable, so it will not survive a reload.',
+      )
+    }
+  }
 
   useEffect(() => controller.subscribe(setSnapshot), [controller])
   useEffect(() => {
@@ -83,7 +117,7 @@ export function App({
     const checklistLink = document.getElementById('open-checklist')
     const openChecklist = (event: Event) => {
       event.preventDefault()
-      setTab('test')
+      changeTab('test')
       document
         .querySelector('.room-toolbar')
         ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -100,13 +134,14 @@ export function App({
       window.removeEventListener('appinstalled', installed)
       checklistLink?.removeEventListener('click', openChecklist)
     }
-  }, [controller])
+  }, [controller, tab, library.dirty, library.busy])
   useEffect(() => {
     if (editing) editField.current?.focus()
   }, [editing])
 
   async function start(index = 0) {
     setError('')
+    setQueueNotice('')
     if (!snapshot.ready) {
       setBusy(true)
       try {
@@ -122,7 +157,11 @@ export function App({
       document
         .getElementById('player-stage')
         ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      controller.start(queue, index)
+      setActiveEntries(queue.map((entry) => ({ ...entry })))
+      controller.start(
+        queue.map((entry) => entry.videoId),
+        index,
+      )
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to start.')
     }
@@ -130,18 +169,19 @@ export function App({
 
   function saveQueue() {
     try {
-      const ids = parseQueue(draft)
-      setQueue(ids)
+      const entries = tracksFromText(draft)
+      // Preserve labels for unchanged occurrences when editing the plain-link queue.
+      const available = [...queue]
+      for (const entry of entries) {
+        const index = available.findIndex(
+          (existing) => existing.videoId === entry.videoId,
+        )
+        if (index >= 0) Object.assign(entry, available.splice(index, 1)[0])
+      }
       setEditing(false)
       setError('')
-      controller.diagnostics.record('queue-edited', { count: ids.length })
-      try {
-        localStorage.setItem(STORAGE_KEY, ids.join('\n'))
-      } catch {
-        setError(
-          'Queue updated for this session. Browser storage is unavailable, so it will not survive a reload.',
-        )
-      }
+      replaceQueue(entries)
+      controller.diagnostics.record('queue-edited', { count: entries.length })
       // Editing never interrupts the currently playing queue. An explicit restart applies it.
     } catch (error) {
       setError(
@@ -207,16 +247,25 @@ export function App({
             role="tab"
             aria-selected={tab === 'queue' ? 'true' : 'false'}
             aria-controls="room-panel"
-            onClick={() => setTab('queue')}
+            onClick={() => changeTab('queue')}
           >
             Your queue <span>{order.length}</span>
+          </button>
+          <button
+            id="tab-library"
+            role="tab"
+            aria-selected={tab === 'library' ? 'true' : 'false'}
+            aria-controls="room-panel"
+            onClick={() => changeTab('library')}
+          >
+            Library
           </button>
           <button
             id="tab-test"
             role="tab"
             aria-selected={tab === 'test' ? 'true' : 'false'}
             aria-controls="room-panel"
-            onClick={() => setTab('test')}
+            onClick={() => changeTab('test')}
           >
             Phone test
           </button>
@@ -226,7 +275,7 @@ export function App({
             aria-selected={tab === 'log' ? 'true' : 'false'}
             aria-controls="room-panel"
             onClick={() => {
-              setTab('log')
+              changeTab('log')
               setLogTick(logTick + 1)
             }}
           >
@@ -245,7 +294,27 @@ export function App({
           {error}
         </p>
       )}
+      {queueNotice && (
+        <p class="notice" role="status">
+          {queueNotice}
+        </p>
+      )}
       <section id="room-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+        {tab === 'library' && (
+          <Library
+            library={library}
+            online={online}
+            queue={queue}
+            loadQueue={(entries) => {
+              replaceQueue(entries)
+              setEditing(false)
+              // Remain in the library so loading never discards an unsaved draft.
+              setQueueNotice(
+                'Saved playlist loaded into your pending queue. Open Your queue and tap Start listening or Restart queue when ready.',
+              )
+            }}
+          />
+        )}
         {tab === 'queue' && (
           <>
             <div class="queue-header">
@@ -255,14 +324,14 @@ export function App({
                   The first rotation<span>.</span>
                 </h2>
                 <p class="muted">
-                  {queue.length} tracks · Your queue stays on this device
+                  {queue.length} tracks · Pending queue stays on this device
                 </p>
               </div>
               <button
                 class="icon-button edit-queue"
                 aria-label="Edit test queue"
                 onClick={() => {
-                  setDraft(queue.join('\n'))
+                  setDraft(queue.map((entry) => entry.videoId).join('\n'))
                   setEditing(!editing)
                   setError('')
                 }}
@@ -315,9 +384,12 @@ export function App({
               {order.map((id, index) => {
                 const active = snapshot.started && snapshot.index === index
                 const currentTitle =
-                  active && snapshot.title
-                    ? snapshot.title
-                    : `YouTube track ${String(index + 1).padStart(2, '0')}`
+                  queueLabel(
+                    snapshot.started ? activeEntries : queue,
+                    order,
+                    index,
+                    snapshot.started && snapshot.shuffle,
+                  ) || (active && snapshot.title ? snapshot.title : id)
                 return (
                   <button
                     class={`track-row ${active ? 'is-active' : ''}`}
@@ -560,7 +632,13 @@ export function App({
                 : 'YOUR LISTENING ROOM'}
             </small>
             <strong>
-              {snapshot.title ||
+              {queueLabel(
+                activeEntries,
+                snapshot.order,
+                snapshot.index,
+                snapshot.shuffle,
+              ) ||
+                snapshot.title ||
                 (snapshot.started
                   ? `YouTube · ${snapshot.videoId}`
                   : 'Something good is up next.')}
