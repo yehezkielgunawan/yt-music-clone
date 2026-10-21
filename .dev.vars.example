@@ -1,0 +1,7 @@
+# Copy to .dev.vars and fill in your own values. This file contains no credentials.
+# Generate AUTH_SECRET with: openssl rand -base64 32
+AUTH_SECRET=""
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+ALLOWED_GOOGLE_EMAIL=""
+AUTH_URL="http://localhost:5173"

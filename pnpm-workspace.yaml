@@ -1,6 +1,13 @@
 onlyBuiltDependencies:
   - esbuild
   - workerd
+autoInstallPeers: false
 allowBuilds:
   esbuild: true
   workerd: true
+packageExtensions:
+  '@hono/auth-js@*':
+    peerDependenciesMeta:
+      # Only the unused /react entry point needs React.
+      react:
+        optional: true

@@ -1,6 +1,5 @@
-const CACHE = 'side-a-shell-v1'
+const CACHE = 'side-a-shell-v2'
 const CORE = [
-  '/',
   '/offline.html',
   '/manifest.webmanifest',
   '/icons/icon.svg',
@@ -13,13 +12,6 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(CACHE)
       await cache.addAll(CORE)
-      const shell = await cache.match('/')
-      const html = await shell.text()
-      // Vite generates these first-party hashed assets. Cache them with the matching HTML.
-      const assets = [
-        ...html.matchAll(/(?:src|href)=["'](\/assets\/[^"']+)["']/g),
-      ].map((match) => match[1])
-      await cache.addAll([...new Set(assets)])
     })(),
   )
   // No skipWaiting: installing an update must not interrupt an active listening session.
@@ -49,8 +41,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          const response = await fetch(request)
-          if (response.ok) return response
+          return await fetch(request)
         } catch {
           /* Return the offline screen; do not claim media is cached. */
         }

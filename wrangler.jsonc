@@ -3,6 +3,15 @@
   "name": "yt-music-clone",
   "compatibility_date": "2025-08-03",
   "main": "./src/index.tsx",
+  "secrets": {
+    "required": [
+      "AUTH_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "ALLOWED_GOOGLE_EMAIL",
+      "AUTH_URL",
+    ],
+  },
   "routes": [
     {
       "pattern": "music.yehezgun.com",
