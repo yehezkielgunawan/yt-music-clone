@@ -1,16 +1,28 @@
 import { Hono } from 'hono'
+import { authHandler } from '@hono/auth-js'
+import { configureAuth, requireOwner, type AppEnv } from './auth/middleware'
+import { AuthErrorPage } from './auth/error-page'
 import { renderer } from './renderer'
 
-const app = new Hono()
-
-app.use(renderer)
+const app = new Hono<AppEnv>()
 
 app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('X-Content-Type-Options', 'nosniff')
-  if (c.req.path === '/') c.header('Cache-Control', 'no-cache')
+  c.header('Cache-Control', 'private, no-store')
   await next()
+  // Auth.js also sets cache headers; enforce no-store on its responses.
+  c.header('Cache-Control', 'private, no-store')
 })
+
+app.use('*', configureAuth)
+app.get('/api/auth/error', (c) => {
+  const denied = c.req.query('error') === 'AccessDenied'
+  return c.html(<AuthErrorPage denied={denied} />, denied ? 403 : 400)
+})
+app.use('/api/auth/*', authHandler())
+app.use('*', requireOwner)
+app.use(renderer)
 
 app.get('/', (c) => {
   return c.render(
@@ -31,6 +43,9 @@ app.get('/', (c) => {
             <span class="status-dot" /> PLAYBACK LAB{' '}
             <span class="version">01</span>
           </span>
+          <a class="text-link" href="/api/auth/signout">
+            Sign out
+          </a>
         </header>
         <main id="listening-room">
           <section class="hero" aria-labelledby="hero-title">

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
+import { test } from './fixtures'
 
 // This is a controlled API-boundary fixture, not a simulation of YouTube's media or Brave ad blocking.
 const apiFixture = `

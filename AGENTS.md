@@ -2,7 +2,7 @@
 
 ## Scope and verification
 
-- This is a YouTube playback prototype, not the full music app: no catalog search, named playlists, D1, Google-account sync, or offline media yet. See `README.md` for the current acceptance gate.
+- This is a private, Google-authenticated YouTube playback prototype, not the full music app: no catalog search, named playlists, D1, YouTube-account sync, or offline media yet. See `README.md` for the current acceptance gate.
 - Brave Shields supplies ad blocking. Browser tests mock the YouTube API; they cannot prove ad-free or Android background playback. Validate a Brave tab and installed PWA separately on a real phone: 20+ minutes locked, at least three track transitions.
 
 ## Commands and test prerequisites
@@ -12,8 +12,8 @@
 - Focus a unit test: `pnpm exec vitest run tests/unit/youtube-player.test.ts -t 'does not autoplay'`.
 - Browser tests require a fresh build: `pnpm build && pnpm test:e2e`. Playwright starts its own production preview on port **4173** and refuses to reuse an existing server; free that port first.
 - Focus a browser test after building: `pnpm exec playwright test tests/browser/playback.spec.ts --grep 'offline'`.
-- Playwright prefers the standard macOS Brave executable; otherwise run `pnpm exec playwright install chromium`. `PLAYWRIGHT_EXECUTABLE_PATH` overrides the browser for tests only.
-- To inspect PWA behavior manually: `pnpm build && pnpm exec vite preview --host 127.0.0.1 --port 4173`. `pnpm dev` intentionally does not register the service worker. Phone installation requires HTTPS, not a plain HTTP LAN URL.
+- Playwright prefers the standard macOS Brave executable; otherwise run `pnpm exec playwright install chromium`. `PLAYWRIGHT_EXECUTABLE_PATH` overrides the browser for tests only. Its preview launcher temporarily supplies test-only bindings in the built `.dev.vars` and restores them on exit; authentication uses real encrypted test cookies, with no app bypass.
+- To inspect PWA behavior manually: configure `AUTH_URL=http://localhost:4173` and the matching Google callback, then `pnpm build && pnpm exec vite preview --host localhost --port 4173 --strictPort`. `pnpm dev` intentionally does not register the service worker. Phone installation requires HTTPS, not a plain HTTP LAN URL.
 
 ## Rendering and playback boundaries
 
@@ -24,12 +24,14 @@
 - Preserve explicit connection/start gestures and autoplay-blocked feedback. Queue edits save locally but apply to the player only after **Restart queue**; they must not interrupt current playback.
 - Preserve the visible player and `strict-origin-when-cross-origin` referrer policy. Derive the player origin from `location.origin`, not the production hostname; suppressing the referrer can cause YouTube error 153.
 - Pass string values (`'true'` / `'false'`) for client JSX ARIA states. Hono boolean attributes can produce empty attributes rather than valid ARIA values.
+- `src/auth/` owns Auth.js configuration and server-side owner enforcement. Keep `/api/auth/*` public and register it before the private-route gate. Only verified Google identities matching `ALLOWED_GOOGLE_EMAIL` are allowed; session reads must recheck that policy. Keep the React-only Auth.js client entry out of this Hono JSX app.
 
 ## PWA and deployment gotchas
 
-- `public/sw.js` caches first-party shell assets only. It is not a background audio service. Bump its cache version when changing the precached shell; preserve waiting updates rather than forcing reloads during playback.
+- `public/sw.js` precaches public installation assets and the offline fallback only. Never precache `/`, protected HTML, or auth/API responses. It is not a background audio service. Bump its cache version when changing the precache; preserve waiting updates rather than forcing reloads during playback.
 - Keep the offline fallback's `new Response(...)` normalization: Cloudflare can redirect `/offline.html` to `/offline`, and returning that cached redirected response directly breaks offline navigation.
 - Vite builds both client assets and the Worker. Edit `wrangler.jsonc`, not generated `dist/` or `.wrangler/deploy/` files; Wrangler follows the generated deployment configuration after a build.
-- No application runtime secrets are required yet. `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` authenticate deployment only, via GitHub repository or `production` environment secrets.
+- Required runtime bindings are `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_GOOGLE_EMAIL`, and `AUTH_URL`; see `.dev.vars.example` and `README.md`. Use Worker secrets in production. `AUTH_URL` pins the exact origin (no auth path); missing/invalid auth configuration must fail closed. `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` authenticate deployment only, via GitHub repository or `production` environment secrets.
+- Generate `CloudflareBindings` with `pnpm cf-typegen` after binding changes; `worker-configuration.d.ts` is generated and excluded from formatting.
 - Production is `music.yehezgun.com`, configured as a Worker Custom Domain. `.github/workflows/deploy.yml` is manual-only (`workflow_dispatch`); retain that behavior. PRs and pushes to `main` run checks, not deployments.
 - Use **`pnpm run deploy`**, not `pnpm deploy` (a pnpm built-in). It publishes for real; validate without publishing using `pnpm build && pnpm exec wrangler deploy --dry-run`. See `README.md` for domain/token setup and manual workflow instructions.

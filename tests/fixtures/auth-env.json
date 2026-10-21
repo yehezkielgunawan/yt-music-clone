@@ -1,0 +1,7 @@
+{
+  "AUTH_SECRET": "side-a-test-only-secret-never-use-in-production-2026",
+  "GOOGLE_CLIENT_ID": "test-client.apps.googleusercontent.com",
+  "GOOGLE_CLIENT_SECRET": "test-only-google-client-secret",
+  "ALLOWED_GOOGLE_EMAIL": "owner@example.com",
+  "AUTH_URL": "http://127.0.0.1:4173"
+}

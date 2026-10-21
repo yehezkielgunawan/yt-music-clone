@@ -6,14 +6,16 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check .github src public tests *.ts *.json *.jsonc README.md",
+    "format:check": "prettier --check .github src public tests scripts/*.mjs *.ts *.json *.jsonc README.md",
     "dev": "vite",
     "build": "vite build",
     "preview": "$npm_execpath run build && vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings --include-runtime=false"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@hono/auth-js": "^1.1.1",
     "hono": "^4.13.13"
   },
   "devDependencies": {
