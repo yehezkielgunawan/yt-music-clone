@@ -213,6 +213,7 @@ export class PlaybackController {
       Math.max(0, Math.min(seconds, this.value.duration)),
       true,
     )
+    this.sync()
   }
   toggleShuffle() {
     this.value.shuffle = !this.value.shuffle

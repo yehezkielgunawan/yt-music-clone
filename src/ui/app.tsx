@@ -5,6 +5,7 @@ import type { PlaybackController } from '../player/youtube-player'
 import { DEFAULT_QUEUE } from '../player/queue'
 import { Icon } from './icon'
 import { Library } from './library'
+import { Transport } from './transport'
 import { useLibrary } from '../library/use-library'
 import type { PlaylistEntry } from '../library/types'
 import { tracksFromText } from '../library/validation'
@@ -22,17 +23,6 @@ const CHECKS = [
   'Lock-screen / headphone controls work',
   'No platform ads observed with Brave Shields',
 ]
-const stateLabel = (state: number) =>
-  ({
-    '-1': 'Ready when you are',
-    '0': 'Track ended',
-    '1': 'Playing',
-    '2': 'Paused',
-    '3': 'Buffering',
-    '5': 'Cued',
-  })[String(state)] || 'Connecting'
-const time = (seconds: number) =>
-  `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 const inputValue = (event: Event) => {
   const target = event.currentTarget
   return target instanceof HTMLInputElement ||
@@ -73,7 +63,7 @@ export function App({
   const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null)
   const [installHint, setInstallHint] = useState('')
   const [logTick, setLogTick] = useState(0)
-  const [seek, setSeek] = useState<number | null>(null)
+  const [videoExpanded, setVideoExpanded] = useState(false)
   const editField = useRef<HTMLTextAreaElement | null>(null)
   const order =
     snapshot.started && snapshot.order.length
@@ -103,6 +93,11 @@ export function App({
   }
 
   useEffect(() => controller.subscribe(setSnapshot), [controller])
+  useEffect(() => {
+    document
+      .getElementById('video-panel')
+      ?.classList.toggle('is-compact', !videoExpanded)
+  }, [videoExpanded])
   useEffect(() => {
     const update = () => setOnline(navigator.onLine)
     const install = (event: Event) => {
@@ -154,9 +149,6 @@ export function App({
       return
     }
     try {
-      document
-        .getElementById('player-stage')
-        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
       setActiveEntries(queue.map((entry) => ({ ...entry })))
       controller.start(
         queue.map((entry) => entry.videoId),
@@ -617,119 +609,39 @@ export function App({
           {installHint}
         </p>
       )}
-      <div class="transport" aria-label="Playback controls">
-        <div class="transport-inner">
-          <div
-            class={`mini-art art-${Math.max(snapshot.index, 0) % 3}`}
-            aria-hidden="true"
-          >
-            ♪
-          </div>
-          <div class="now-playing">
-            <small>
-              {snapshot.started
-                ? stateLabel(snapshot.state)
-                : 'YOUR LISTENING ROOM'}
-            </small>
-            <strong>
-              {queueLabel(
-                activeEntries,
-                snapshot.order,
-                snapshot.index,
-                snapshot.shuffle,
-              ) ||
-                snapshot.title ||
-                (snapshot.started
-                  ? `YouTube · ${snapshot.videoId}`
-                  : 'Something good is up next.')}
-            </strong>
-            <span>
-              {snapshot.author ||
-                (snapshot.started
-                  ? 'Played by YouTube'
-                  : 'Connect the player, then press play.')}
-            </span>
-          </div>
-          <div class="transport-buttons">
-            <button
-              class="icon-button optional-control"
-              aria-label="Shuffle queue"
-              aria-pressed={snapshot.shuffle ? 'true' : 'false'}
-              disabled={!snapshot.started}
-              onClick={() => controller.toggleShuffle()}
-            >
-              <Icon name="shuffle" size={18} />
-            </button>
-            <button
-              class="icon-button"
-              aria-label="Previous track"
-              disabled={!snapshot.started}
-              onClick={() => controller.previous()}
-            >
-              <Icon name="previous" />
-            </button>
-            <button
-              class="main-play"
-              aria-label={snapshot.state === 1 ? 'Pause' : 'Play'}
-              disabled={busy || !online}
-              onClick={() => {
-                if (!snapshot.started) void start()
-                else if (snapshot.state === 1) controller.pause()
-                else controller.play()
-              }}
-            >
-              <Icon name={snapshot.state === 1 ? 'pause' : 'play'} size={22} />
-            </button>
-            <button
-              class="icon-button"
-              aria-label="Next track"
-              disabled={!snapshot.started}
-              onClick={() => controller.next()}
-            >
-              <Icon name="next" />
-            </button>
-            <button
-              class="icon-button optional-control"
-              aria-label="Repeat queue"
-              aria-pressed={snapshot.loop ? 'true' : 'false'}
-              disabled={!snapshot.started}
-              onClick={() => controller.toggleLoop()}
-            >
-              <Icon name="repeat" size={18} />
-            </button>
-          </div>
-          <div class="time-display">
-            {time(snapshot.currentTime)}{' '}
-            <span>/ {time(snapshot.duration)}</span>
-          </div>
-          <div class="seek-row">
-            <span>{time(seek ?? snapshot.currentTime)}</span>
-            <input
-              type="range"
-              aria-label="Seek playback"
-              min="0"
-              max={Math.max(snapshot.duration, 1)}
-              step="1"
-              value={seek ?? snapshot.currentTime}
-              disabled={!snapshot.started || !snapshot.duration}
-              onInput={(event) => setSeek(Number(inputValue(event)))}
-              onChange={(event) => {
-                controller.seek(Number(inputValue(event)))
-                setSeek(null)
-              }}
-            />
-            <span>{time(snapshot.duration)}</span>
-          </div>
-        </div>
-        {snapshot.message && (
-          <p
-            class={`transport-message ${snapshot.failed ? 'is-error' : ''}`}
-            role={snapshot.failed ? 'alert' : 'status'}
-          >
-            {snapshot.message}
-          </p>
-        )}
-      </div>
+      <Transport
+        snapshot={snapshot}
+        title={
+          queueLabel(
+            activeEntries,
+            snapshot.order,
+            snapshot.index,
+            snapshot.shuffle,
+          ) ||
+          snapshot.title ||
+          (snapshot.started
+            ? `YouTube · ${snapshot.videoId}`
+            : 'Something good is up next.')
+        }
+        author={
+          snapshot.author ||
+          (snapshot.started
+            ? 'Played by YouTube'
+            : 'Connect the player, then press play.')
+        }
+        busy={busy}
+        online={online}
+        videoExpanded={videoExpanded}
+        onToggleVideo={() => setVideoExpanded(!videoExpanded)}
+        onStart={() => void start()}
+        onPlay={() => controller.play()}
+        onPause={() => controller.pause()}
+        onPrevious={() => controller.previous()}
+        onNext={() => controller.next()}
+        onSeek={(seconds) => controller.seek(seconds)}
+        onShuffle={() => controller.toggleShuffle()}
+        onRepeat={() => controller.toggleLoop()}
+      />
     </>
   )
 }

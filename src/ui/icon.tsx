@@ -15,6 +15,8 @@ const paths = {
   connection: 'M5 12a7 7 0 0 1 14 0M8 15a4 4 0 0 1 8 0M12 19h.01',
   list: 'M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01',
   close: 'm6 6 12 12M6 18 18 6',
+  expand: 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',
+  compact: 'M3 8h5V3m13 5h-5V3M8 21v-5H3m13 5v-5h5',
 } as const
 
 export function Icon({
