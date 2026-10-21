@@ -32,6 +32,23 @@ function setup() {
 }
 
 describe('persistent player boundary', () => {
+  it('refreshes the observed position after seeking without resuming a paused track', () => {
+    const { player, controller } = setup()
+    let position = 42
+    player.getCurrentTime = () => position
+    player.getPlayerState = () => 2
+    player.seekTo = vi.fn((seconds) => {
+      position = seconds
+    })
+    controller.attach(player)
+    controller.sync()
+    controller.seek(999)
+    expect(player.seekTo).toHaveBeenCalledExactlyOnceWith(180, true)
+    expect(controller.snapshot().currentTime).toBe(180)
+    expect(controller.snapshot().state).toBe(2)
+    expect(player.playVideo).not.toHaveBeenCalled()
+  })
+
   it('does not autoplay on ready; loads the entire queue only on explicit start', () => {
     const { player, controller } = setup()
     controller.attach(player)
