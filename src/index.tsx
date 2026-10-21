@@ -4,6 +4,7 @@ import { configureAuth, requireOwner, type AppEnv } from './auth/middleware'
 import { AuthErrorPage } from './auth/error-page'
 import { renderer } from './renderer'
 import { library } from './library/routes'
+import { metadata } from './library/metadata-routes'
 
 const app = new Hono<AppEnv>()
 
@@ -24,6 +25,7 @@ app.get('/api/auth/error', (c) => {
 app.use('/api/auth/*', authHandler())
 app.use('*', requireOwner)
 app.route('/api/playlists', library)
+app.route('/api/tracks', metadata)
 app.use(renderer)
 
 app.get('/', (c) => {
@@ -34,11 +36,11 @@ app.get('/', (c) => {
       </a>
       <div class="site-shell">
         <header class="site-header">
-          <a class="wordmark" href="/" aria-label="Side A home">
+          <a class="wordmark" href="/" aria-label="Yehezgun-music home">
             <span class="brand-icon" aria-hidden="true">
-              a
+              ♪
             </span>
-            side a<span class="brand-dot">.</span>
+            Yehezgun-music<span class="brand-dot">.</span>
           </a>
           <span class="header-caption">YOUR OWN LITTLE LISTENING ROOM</span>
           <span class="prototype-tag">
@@ -69,7 +71,7 @@ app.get('/', (c) => {
             <div class="record-art" aria-hidden="true">
               <div class="record-grooves">
                 <div class="record-label">
-                  <span>SIDE A</span>
+                  <span>Yehezgun-music</span>
                   <strong>33⅓</strong>
                   <small>JUST PRESS PLAY</small>
                 </div>

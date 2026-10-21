@@ -2,6 +2,9 @@ export interface PlaylistEntry {
   id: string
   videoId: string
   label: string | null
+  title?: string | null
+  author?: string | null
+  album?: string | null
 }
 
 export interface PlaylistDraft {

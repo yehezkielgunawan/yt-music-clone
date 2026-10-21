@@ -3,6 +3,7 @@ import {
   loadQueue,
   saveQueue,
   queueLabel,
+  queueEntry,
   QUEUE_KEY,
   LEGACY_QUEUE_KEY,
 } from '../../src/player/queue-storage'
@@ -23,6 +24,11 @@ describe('labeled queue storage', () => {
     store.setItem(LEGACY_QUEUE_KEY, 'jfKfPfyJRdk\njfKfPfyJRdk')
     const entries = loadQueue(store)
     entries[1].label = 'Second occurrence'
+    Object.assign(entries[1], {
+      title: 'Song',
+      author: 'Artist',
+      album: 'Album',
+    })
     saveQueue(store, entries)
     expect(loadQueue(store)).toEqual(entries)
     expect(store.getItem(LEGACY_QUEUE_KEY)).not.toBeNull()
@@ -49,6 +55,13 @@ describe('labeled queue storage', () => {
     const entries = loadQueue({ getItem: () => 'jfKfPfyJRdk\njfKfPfyJRdk' })
     entries[0].label = 'First'
     entries[1].label = 'Second'
+    entries[1].album = 'Second album'
+    expect(
+      queueEntry(entries, ['jfKfPfyJRdk', 'jfKfPfyJRdk'], 1, false)?.album,
+    ).toBe('Second album')
+    expect(
+      queueEntry(entries, ['jfKfPfyJRdk', 'jfKfPfyJRdk'], 1, true),
+    ).toBeNull()
     expect(queueLabel(entries, ['jfKfPfyJRdk', 'jfKfPfyJRdk'], 1, false)).toBe(
       'Second',
     )

@@ -46,6 +46,31 @@ afterEach(() => {
   databases.splice(0).forEach((db) => db.close())
 })
 describe('playlist SQL persistence', () => {
+  it('roundtrips track metadata through create and revision-checked updates', async () => {
+    const { repo } = repository()
+    const id = crypto.randomUUID()
+    const data = {
+      ...draft,
+      entries: [
+        {
+          ...draft.entries[0],
+          title: 'Song',
+          author: 'Artist',
+          album: 'Album',
+        },
+      ],
+    }
+    await repo.create(id, data)
+    expect((await repo.get(id))?.entries).toEqual(data.entries)
+    const updated = {
+      ...data,
+      entries: [{ ...data.entries[0], album: 'Another album' }],
+    }
+    expect((await repo.update(id, 1, updated))?.entries).toEqual(
+      updated.entries,
+    )
+    expect(await repo.update(id, 1, data)).toBeNull()
+  })
   it('roundtrips entries, lists summaries and scopes every operation to the owner', async () => {
     const { db, repo } = repository()
     const id = crypto.randomUUID()

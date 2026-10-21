@@ -62,6 +62,11 @@ test('saves labeled YouTube Music tracks, reorders duplicates and reopens on ano
   const context = await browser.newContext({
     storageState: await page.context().storageState(),
   })
+  await context.route('**/api/tracks/*', (route) =>
+    route.fulfill({
+      json: { title: 'Fixture song', author: 'Fixture artist' },
+    }),
+  )
   const other = await context.newPage()
   try {
     await other.goto('/')

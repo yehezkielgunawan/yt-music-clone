@@ -7,6 +7,11 @@ export const test = base.extend({
     await context.addCookies([
       { ...(await sessionCookie()), httpOnly: true, sameSite: 'Lax' },
     ])
+    await context.route('**/api/tracks/*', (route) =>
+      route.fulfill({
+        json: { title: 'Fixture song', author: 'Fixture artist' },
+      }),
+    )
     await use(page)
   },
 })

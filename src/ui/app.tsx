@@ -9,10 +9,11 @@ import { Transport } from './transport'
 import { useLibrary } from '../library/use-library'
 import type { PlaylistEntry } from '../library/types'
 import { tracksFromText } from '../library/validation'
+import { TrackMetadata } from '../library/track-metadata'
 import {
   loadQueue,
   saveQueue as persistQueue,
-  queueLabel,
+  queueEntry,
 } from '../player/queue-storage'
 
 const CHECKS = [
@@ -50,7 +51,11 @@ export function App({
   const [snapshot, setSnapshot] = useState(controller.snapshot())
   const [queue, setQueue] = useState(initialQueue)
   const [tab, setTab] = useState<'queue' | 'library' | 'test' | 'log'>('queue')
-  const library = useLibrary(tab === 'library')
+  const [metadata] = useState(() => new TrackMetadata())
+  const [metadataVersion, setMetadataVersion] = useState(0)
+  const library = useLibrary(tab === 'library', (entries) =>
+    metadata.enrich(entries),
+  )
   const [activeEntries, setActiveEntries] = useState<PlaylistEntry[]>([])
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -69,6 +74,40 @@ export function App({
     snapshot.started && snapshot.order.length
       ? snapshot.order
       : queue.map((entry) => entry.videoId)
+  const playingEntry = queueEntry(
+    activeEntries,
+    snapshot.order,
+    snapshot.index,
+    snapshot.shuffle,
+  )
+  const playingDetails = metadata.details(
+    playingEntry ?? {
+      id: '',
+      videoId: snapshot.videoId,
+      label: null,
+    },
+  )
+
+  useEffect(
+    () =>
+      metadata.subscribe(() => setMetadataVersion((version) => version + 1)),
+    [metadata],
+  )
+  useEffect(() => {
+    if (online)
+      void metadata.load([
+        ...queue,
+        ...activeEntries,
+        ...(library.draft?.entries ?? []),
+      ])
+  }, [metadata, queue, activeEntries, library.draft?.entries, online])
+  useEffect(() => {
+    try {
+      persistQueue(localStorage, metadata.enrich(queue))
+    } catch {
+      // Lookup results remain visible when browser storage is unavailable.
+    }
+  }, [metadata, metadataVersion, queue])
 
   function changeTab(next: typeof tab) {
     if (next === tab) return
@@ -84,7 +123,7 @@ export function App({
     setQueue(next)
     setError('')
     try {
-      persistQueue(localStorage, next)
+      persistQueue(localStorage, metadata.enrich(next))
     } catch {
       setError(
         'Queue updated for this session. Browser storage is unavailable, so it will not survive a reload.',
@@ -106,7 +145,7 @@ export function App({
     }
     const installed = () => {
       setInstallPrompt(null)
-      setInstallHint('Installed. Open Side A from your home screen.')
+      setInstallHint('Installed. Open Yehezgun-music from your home screen.')
       controller.diagnostics.record('app-installed')
     }
     const checklistLink = document.getElementById('open-checklist')
@@ -149,7 +188,7 @@ export function App({
       return
     }
     try {
-      setActiveEntries(queue.map((entry) => ({ ...entry })))
+      setActiveEntries(metadata.enrich(queue))
       controller.start(
         queue.map((entry) => entry.videoId),
         index,
@@ -207,7 +246,7 @@ export function App({
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `side-a-playback-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    link.download = `yehezgun-music-playback-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -296,7 +335,8 @@ export function App({
           <Library
             library={library}
             online={online}
-            queue={queue}
+            queue={metadata.enrich(queue)}
+            metadata={metadata}
             loadQueue={(entries) => {
               replaceQueue(entries)
               setEditing(false)
@@ -375,13 +415,15 @@ export function App({
             <div class="track-list" aria-label="Playback queue">
               {order.map((id, index) => {
                 const active = snapshot.started && snapshot.index === index
+                const entry = queueEntry(
+                  snapshot.started ? activeEntries : queue,
+                  order,
+                  index,
+                  snapshot.started && snapshot.shuffle,
+                ) ?? { id: '', videoId: id, label: null }
+                const details = metadata.details(entry)
                 const currentTitle =
-                  queueLabel(
-                    snapshot.started ? activeEntries : queue,
-                    order,
-                    index,
-                    snapshot.started && snapshot.shuffle,
-                  ) || (active && snapshot.title ? snapshot.title : id)
+                  entry.label || (active && snapshot.title) || details.title
                 return (
                   <button
                     class={`track-row ${active ? 'is-active' : ''}`}
@@ -417,8 +459,11 @@ export function App({
                     <span class="track-text">
                       <strong>{currentTitle}</strong>
                       <small>
-                        {active && snapshot.author ? snapshot.author : id}{' '}
-                        <span>· YouTube</span>
+                        {active && snapshot.author
+                          ? [snapshot.author, entry.album]
+                              .filter(Boolean)
+                              .join(' · ')
+                          : details.subtitle}
                       </small>
                     </span>
                     <span class="track-play">
@@ -428,6 +473,27 @@ export function App({
                 )
               })}
             </div>
+            {order.some(
+              (id) =>
+                metadata.details({ id: '', videoId: id, label: null })
+                  .unavailable,
+            ) && (
+              <button
+                class="btn btn-sm"
+                disabled={!online}
+                onClick={() => {
+                  for (const id of new Set(order)) {
+                    if (
+                      metadata.details({ id: '', videoId: id, label: null })
+                        .unavailable
+                    )
+                      void metadata.retry(id)
+                  }
+                }}
+              >
+                Retry track details
+              </button>
+            )}
             <div class="queue-actions">
               <button
                 class="primary-button"
@@ -594,11 +660,14 @@ export function App({
       </section>
       <div class="install-card">
         <span class="install-art" aria-hidden="true">
-          a.
+          ♪
         </span>
         <div>
           <strong>A home on your home screen.</strong>
-          <p>Install Side A for a little less browser, a little more music.</p>
+          <p>
+            Install Yehezgun-music for a little less browser, a little more
+            music.
+          </p>
         </div>
         <button class="install-button" onClick={() => void install()}>
           Install <Icon name="plus" size={16} />
@@ -612,21 +681,16 @@ export function App({
       <Transport
         snapshot={snapshot}
         title={
-          queueLabel(
-            activeEntries,
-            snapshot.order,
-            snapshot.index,
-            snapshot.shuffle,
-          ) ||
+          playingEntry?.label ||
           snapshot.title ||
           (snapshot.started
-            ? `YouTube · ${snapshot.videoId}`
+            ? playingDetails.title
             : 'Something good is up next.')
         }
         author={
           snapshot.author ||
           (snapshot.started
-            ? 'Played by YouTube'
+            ? playingDetails.subtitle
             : 'Connect the player, then press play.')
         }
         busy={busy}
