@@ -176,7 +176,7 @@ export function App({
     const link = document.createElement('a')
     link.href = url
     link.download = `side-a-playback-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-    document.body.append(link)
+    document.body.appendChild(link)
     link.click()
     link.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 10000)
