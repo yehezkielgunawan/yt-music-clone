@@ -4,6 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import type { AppEnv } from '../auth/middleware'
 import { PlaylistRepository } from './repository'
 import { parseId, parsePlaylist, parseRevision } from './validation'
+import { sharing } from '../sharing/routes'
 
 const library = new Hono<AppEnv>()
 library.use('*', async (c, next) => {
@@ -66,6 +67,7 @@ const conflict = {
     'This playlist changed on another device. Reload the latest version or save your draft as a new playlist.',
 }
 
+library.route('/', sharing)
 library.get('/', async (c) => c.json({ playlists: await repo(c).list() }))
 library.post('/', async (c) => {
   const body = await c.req.json<unknown>()

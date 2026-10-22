@@ -19,8 +19,9 @@ queue in **Brave on Android**, including playback while the phone is locked.
 - A private D1-backed library of named playlists, available across devices.
 - Optional custom track labels, ordered duplicates, and explicit save/discard.
 - Individual YouTube and YouTube Music track links; no external playlist import.
+- Public, read-only playlist snapshots with anonymous playback and revocable links.
 
-This is a **private playback and saved-library MVP**. Search, automatic metadata
+This is a **private playback and saved-library MVP**, with opt-in public playlist snapshots. Search, automatic metadata
 retrieval, YouTube-account synchronization, external playlist import, and offline
 music are not implemented. Custom labels take precedence in the queue; without a
 label, the current track uses YouTube metadata when available and other rows show
@@ -137,6 +138,39 @@ playback, YouTube may not distinguish identical-video occurrences; Yehezgun-musi
 back to shared YouTube metadata if it cannot safely identify which custom
 label or album applies. Track rows never fall back to raw video IDs. All
 occurrence-specific labels and albums remain preserved in the library.
+
+### Sharing a playlist
+
+Open a saved playlist in **Library**, then use **Share saved playlist**. Copy the
+**Public playlist link**, or open it in a new tab. Anyone with this link can view
+the track list and listen without signing in. Your library and editing APIs remain
+owner-only; shared pages do not expose your other playlists or offer editing.
+
+- Each playlist has at most one active public snapshot. Sharing is off by default.
+- A snapshot copies the saved name, track order, duplicates, labels, titles,
+  authors, and album fields. Unsaved edits and unadded track links stay private.
+- Editing or saving the original playlist never changes an existing snapshot.
+- **Replace shared snapshot** explicitly publishes the current saved version and
+  generates a new URL. The old URL immediately stops working for new requests.
+- **Disable sharing**, or deleting the original playlist, revokes public access.
+  An already-open page can retain its loaded track list and continue playback.
+- **Refresh sharing status** retrieves link changes from another tab/device without
+  discarding the editor. A stale publish/replace/revoke is rejected; refresh the
+  sharing status and, for publishing, reopen/reload the saved playlist as needed.
+- Failed requests retain a **Retry sharing request** action. It repeats the same
+  operation so a lost response does not accidentally replace or rotate a link.
+- If automatic copying is unavailable, select and copy the URL from the link field.
+- Visitors connect the player and then explicitly tap **Start listening**. No
+  YouTube request is needed to render the stored track list. Playback still needs
+  connectivity; browser ad blocking and background playback limitations still apply.
+- Public pages use `/s/<random-token>`, are marked `noindex`, and are not stored in
+  the service-worker cache. The anonymous player does not read or overwrite the
+  browser's private pending queue. Treat the link as access to the snapshot:
+  anyone you send it to can forward it.
+
+The sharing table is added by `0002_playlist_shares.sql`. Run `pnpm db:migrate`
+before local use; the existing deployment command applies pending remote migrations.
+No extra bindings, OAuth scopes, or YouTube API key are required.
 
 ### Library database setup
 

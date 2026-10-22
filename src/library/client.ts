@@ -64,3 +64,5 @@ export const libraryClient = {
   delete: (id: string, revision: number) =>
     request<{ deleted: boolean }>(`/${id}`, 'DELETE', { revision }),
 }
+
+export { request as playlistRequest }

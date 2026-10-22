@@ -5,6 +5,7 @@ import { AuthErrorPage } from './auth/error-page'
 import { renderer } from './renderer'
 import { library } from './library/routes'
 import { metadata } from './library/metadata-routes'
+import { publicSharing } from './sharing/public-routes'
 
 const app = new Hono<AppEnv>()
 
@@ -23,6 +24,7 @@ app.get('/api/auth/error', (c) => {
   return c.html(<AuthErrorPage denied={denied} />, denied ? 403 : 400)
 })
 app.use('/api/auth/*', authHandler())
+app.route('/', publicSharing)
 app.use('*', requireOwner)
 app.route('/api/playlists', library)
 app.route('/api/tracks', metadata)
