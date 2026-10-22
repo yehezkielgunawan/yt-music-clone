@@ -2,8 +2,9 @@
 
 ## Scope and verification
 
-- This is a private, Google-authenticated YouTube playback and saved-library MVP. Named playlists use D1; catalog search, YouTube-account sync, external playlist import, and offline media are not implemented. See `README.md` for the current acceptance gate.
+- This is a private, Google-authenticated YouTube playback and saved-library MVP with opt-in public playlist snapshots. Named playlists use D1; catalog search, YouTube-account sync, external playlist import, and offline media are not implemented. See `README.md` for the current acceptance gate.
 - `src/library/` owns playlist validation, owner-scoped persistence/API, and client editor state. Keep saved playlists, drafts, pending queues, and active playback snapshots separate. Saving/loading/deleting a playlist must not interrupt playback; Start/Restart applies pending queues. D1 writes/deletes use revision checks; never silently overwrite a conflict.
+- `src/sharing/` owns immutable public playlist snapshots. Only GET `/s/:token` and `/api/shares/:token` are public, registered before the owner gate. Management under `/api/playlists/:id/share` stays protected. Publish from the saved D1 row with owner/revision checks; replacements rotate tokens, revocations keep version tombstones, and source deletion cascades. Preserve operation IDs on retries and share-version checks across devices. Keep the anonymous client separate from private library/queue initialization; never cache snapshot HTML or API data in the service worker.
 - Brave Shields supplies ad blocking. Browser tests mock the YouTube API; they cannot prove ad-free or Android background playback. Validate a Brave tab and installed PWA separately on a real phone: 20+ minutes locked, at least three track transitions.
 
 ## Commands and test prerequisites
