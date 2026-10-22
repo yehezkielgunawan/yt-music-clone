@@ -3,6 +3,7 @@
 import type { useLibrary } from '../library/use-library'
 import type { PlaylistEntry } from '../library/types'
 import type { TrackMetadata } from '../library/track-metadata'
+import { ShareControls } from '../sharing/controls'
 
 type LibraryState = ReturnType<typeof useLibrary>
 function inputValue(event: Event) {
@@ -328,6 +329,14 @@ export function Library({
               Load uses the saved version. Start listening or Restart queue
               applies it to playback.
             </p>
+          )}
+          {saved && (
+            <ShareControls
+              key={saved.id}
+              saved={saved}
+              disabled={disabled}
+              dirty={library.dirty}
+            />
           )}
         </section>
       )}
