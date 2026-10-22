@@ -72,6 +72,8 @@ describe('public-only service worker cache', () => {
     '/api/auth/signin',
     '/api/auth/callback/google',
     '/api/private',
+    '/s/a-public-snapshot',
+    '/api/shares/a-public-snapshot',
   ])('never intercepts %s', async (path) => {
     const { listeners } = await worker()
     const respondWith = vi.fn()
